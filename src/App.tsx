@@ -314,7 +314,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDF7ED] text-[#111111] flex flex-col font-sans selection:bg-[#FED228] selection:text-[#111111] relative">
+    <div className="min-h-screen bg-[#FDF7ED] text-[#111111] flex flex-col font-sans selection:bg-[#FED228] selection:text-[#111111] relative overflow-x-clip">
       {/* Universal Header (shown in room / transfer mode) */}
       {currentView === 'room' && (
         <Header
@@ -328,7 +328,6 @@ export default function App() {
           }}
           onGoHome={handleGoHome}
           onOpenArchitecture={() => setIsArchitectureOpen(true)}
-          showBackArrow={true}
         />
       )}
 
