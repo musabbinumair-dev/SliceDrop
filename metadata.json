@@ -1,0 +1,6 @@
+{
+  "name": "QuickDrop - Cross-Device File Transfer",
+  "description": "Fast, secure, temporary peer-to-cloud file sharing between phones and computers with 6-digit codes and QR.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
