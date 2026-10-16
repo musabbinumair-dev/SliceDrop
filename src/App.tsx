@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header.tsx';
 import { HomeLanding } from './components/HomeLanding.tsx';
 import { RoomView, RoomData, UploadQueueItem } from './components/RoomView.tsx';
+import { MobileRoomView } from './components/MobileRoomView.tsx';
 import { ReceiveModal } from './components/ReceiveModal.tsx';
-import { ArchitectureModal } from './components/ArchitectureModal.tsx';
+import { SettingsModal } from './components/SettingsModal.tsx';
 import { FileItem } from './components/FileList.tsx';
 
 interface SystemInfo {
@@ -18,31 +19,7 @@ interface SystemInfo {
   };
 }
 
-const initialDemoRoom: RoomData = {
-  id: 'demo-room-init',
-  code: '945165',
-  createdAt: Date.now(),
-  lastActivityAt: Date.now(),
-  expiresInSeconds: 3590,
-  status: 'active',
-  isCreator: true,
-  files: [
-    {
-      id: 'demo-f-1',
-      originalFilename: 'lecture-notes.pdf',
-      sizeBytes: 2.4 * 1024 * 1024,
-      mimeType: 'application/pdf',
-      createdAt: Date.now() - 1000 * 60 * 5,
-    },
-    {
-      id: 'demo-f-2',
-      originalFilename: 'design-assets.zip',
-      sizeBytes: 18.0 * 1024 * 1024,
-      mimeType: 'application/zip',
-      createdAt: Date.now() - 1000 * 60 * 12,
-    },
-  ],
-};
+
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'room' | 'home'>('home');
@@ -62,6 +39,18 @@ export default function App() {
   const [isArchitectureOpen, setIsArchitectureOpen] = useState(false);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [isJoiningCode, setIsJoiningCode] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Fetch system & storage configuration
   useEffect(() => {
@@ -307,16 +296,14 @@ export default function App() {
     window.history.pushState({}, '', url.toString());
   };
 
-  const activeRoomData = currentRoom || initialDemoRoom;
-
   const getShareUrl = () => {
-    return `${window.location.origin}/?room=${activeRoomData.code}`;
+    return currentRoom ? `${window.location.origin}/?room=${currentRoom.code}` : '';
   };
 
   return (
     <div className="min-h-screen bg-[#FDF7ED] text-[#111111] flex flex-col font-sans selection:bg-[#FED228] selection:text-[#111111] relative overflow-x-clip">
-      {/* Universal Header (shown in room / transfer mode) */}
-      {currentView === 'room' && (
+      {/* Universal Header (shown in room / transfer mode on desktop >= 768px) */}
+      {currentView === 'room' && !isMobile && (
         <Header
           activeTab="send"
           onTabChange={tab => {
@@ -334,25 +321,49 @@ export default function App() {
       {/* Main View Router: Room View or Home Landing Page */}
       <main className="flex-1">
         {currentView === 'room' ? (
-          <RoomView
-            room={currentRoom}
-            creatorToken={currentRoom ? creatorTokens[currentRoom.id] : undefined}
-            shareUrl={getShareUrl()}
-            maxFileSizeMb={systemInfo?.maxFileSizeMb || 100}
-            onLeaveRoom={handleGoHome}
-            onRoomEnded={() => {
-              setCurrentRoom(null);
-            }}
-            onRefreshRoom={refreshRoom}
-            onFileUpload={handleFileUpload}
-            onDownloadFile={handleDownloadFile}
-            isUploading={isUploading}
-            uploadQueue={uploadQueue}
-            onCreateNewRoom={async (stagedFiles?: File[]) => {
-              const room = await createNewRoom(stagedFiles);
-              return room;
-            }}
-          />
+          isMobile ? (
+            <MobileRoomView
+              room={currentRoom}
+              creatorToken={currentRoom ? creatorTokens[currentRoom.id] : undefined}
+              shareUrl={getShareUrl()}
+              maxFileSizeMb={systemInfo?.maxFileSizeMb || 100}
+              onLeaveRoom={handleGoHome}
+              onRoomEnded={() => {
+                setCurrentRoom(null);
+              }}
+              onRefreshRoom={refreshRoom}
+              onFileUpload={handleFileUpload}
+              onDownloadFile={handleDownloadFile}
+              isUploading={isUploading}
+              uploadQueue={uploadQueue}
+              onCreateNewRoom={async (stagedFiles?: File[]) => {
+                const room = await createNewRoom(stagedFiles);
+                return room;
+              }}
+              onOpenArchitecture={() => setIsArchitectureOpen(true)}
+              onOpenReceive={() => setIsReceiveModalOpen(true)}
+            />
+          ) : (
+            <RoomView
+              room={currentRoom}
+              creatorToken={currentRoom ? creatorTokens[currentRoom.id] : undefined}
+              shareUrl={getShareUrl()}
+              maxFileSizeMb={systemInfo?.maxFileSizeMb || 100}
+              onLeaveRoom={handleGoHome}
+              onRoomEnded={() => {
+                setCurrentRoom(null);
+              }}
+              onRefreshRoom={refreshRoom}
+              onFileUpload={handleFileUpload}
+              onDownloadFile={handleDownloadFile}
+              isUploading={isUploading}
+              uploadQueue={uploadQueue}
+              onCreateNewRoom={async (stagedFiles?: File[]) => {
+                const room = await createNewRoom(stagedFiles);
+                return room;
+              }}
+            />
+          )
         ) : (
           <HomeLanding
             onStartSharing={() => {
@@ -379,8 +390,8 @@ export default function App() {
         isLoading={isJoiningCode}
       />
 
-      {/* Architecture & Specs Modal */}
-      <ArchitectureModal
+      {/* Settings Modal */}
+      <SettingsModal
         isOpen={isArchitectureOpen}
         onClose={() => setIsArchitectureOpen(false)}
         storageInfo={
