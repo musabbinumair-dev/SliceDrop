@@ -1,4 +1,5 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import http from 'node:http';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -13,12 +14,14 @@ import {
   INACTIVITY_TIMEOUT_MS,
   MAX_ROOM_LIFETIME_MS,
 } from './server/room-utils.ts';
-import { StoredFile } from './server/types.ts';
+import type { StoredFile } from './server/types.ts';
 
 dotenv.config();
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const portArgIndex = process.argv.indexOf('--port');
+const portFromArg = portArgIndex !== -1 ? process.argv[portArgIndex + 1] : undefined;
+const PORT = parseInt(portFromArg || process.env.PORT || '3000', 10);
 const HOST = '0.0.0.0';
 
 // JSON parsing for standard API bodies

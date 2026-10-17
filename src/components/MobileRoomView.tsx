@@ -260,9 +260,50 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
     touchDeltaY.current = 0;
   };
 
+  const renderMobileFileTile = (filename: string) => {
+    return (
+      <FileTypeIcon
+        filename={filename}
+        size="mobile"
+        className="w-[43px] h-[43px] rounded-[11px] object-contain select-none shrink-0"
+      />
+    );
+  };
 
-  // Determine files to display: real files first, mock fallback if empty
+  // Determine files to display: real files only (no mock files)
   const displayFiles = room?.files || [];
+
+  const DEMO_FALLBACK_FILES: Array<{
+    id: string;
+    originalFilename: string;
+    sizeBytes: number;
+    status: 'uploaded' | 'uploading' | 'waiting';
+    progress?: number;
+  }> = [];
+
+  const hasRealItems = (uploadQueue && uploadQueue.length > 0) || (displayFiles && displayFiles.length > 0);
+  const itemsToDisplay = hasRealItems
+    ? [
+        ...uploadQueue
+          .filter(q => q.status !== 'completed' && !displayFiles.some(f => f.originalFilename === q.name))
+          .map((q, idx) => ({
+            id: `q-${q.name}-${idx}`,
+            name: q.name,
+            size: q.size,
+            status: (q.status === 'uploading' ? 'uploading' : 'waiting') as 'uploaded' | 'uploading' | 'waiting',
+            progress: q.progress ?? 68,
+            realFile: undefined as FileItem | undefined,
+          })),
+        ...displayFiles.map(f => ({
+          id: f.id,
+          name: f.originalFilename,
+          size: f.sizeBytes,
+          status: 'uploaded' as const,
+          progress: 100,
+          realFile: f,
+        })),
+      ]
+    : [];
 
   const codeDigits = activeCode.padEnd(6, '0').slice(0, 6).split('');
 
@@ -495,26 +536,24 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
       )}
 
       <div
-        className={`fixed left-0 right-0 bottom-0 bg-[#FBF6EC] border-t-[3px] border-x-[3px] border-[#111111] rounded-t-[22px] z-40 flex flex-col transition-all duration-300 ease-out shadow-[0_-4px_0_#111111] ${
-          isSheetExpanded ? 'h-[85vh]' : 'h-[370px]'
+        className={`fixed left-0 right-0 bottom-0 bg-[#FEF6EB] border-t-[1.5px] border-x-[1.5px] border-[#111111] rounded-t-[28px] z-40 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] antialiased transition-all duration-300 ease-out ${
+          isSheetExpanded ? 'h-[85vh]' : 'h-[402px]'
         }`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Drag Handle (38px x 5px, #B8B8B8, 6px below top) */}
+        {/* Drag Handle: 38px x 5px, #B9B9B9, centered, 12px below sheet's top edge */}
         <div
-          className="w-full pt-[6px] pb-[8px] flex justify-center cursor-grab active:cursor-grabbing shrink-0"
+          className="absolute top-[12px] left-1/2 -translate-x-1/2 w-[38px] h-[5px] bg-[#B9B9B9] rounded-full cursor-grab active:cursor-grabbing"
           onClick={() => setIsSheetExpanded(prev => !prev)}
-        >
-          <div className="w-[38px] h-[5px] bg-[#B8B8B8] rounded-full" />
-        </div>
+        />
 
-        {/* Header: "Files in this room" (20px/800) + "+ Add more files" (144px x 36px) */}
-        <div className="px-[14px] pb-[10px] flex items-center justify-between shrink-0">
+        {/* Header row: starts 22px below top edge; left padding 19px, right padding 14px; title and button vertically centered with each other */}
+        <div className="pt-[22px] pl-[19px] pr-[14px] flex items-center justify-between shrink-0">
           <h2
             onClick={() => setIsSheetExpanded(prev => !prev)}
-            className="font-['Poppins',sans-serif] font-extrabold text-[20px] text-[#111111] tracking-tight leading-none cursor-pointer"
+            className="font-['Plus_Jakarta_Sans',sans-serif] font-[800] text-[24px] text-[#0A1020] tracking-[-0.01em] leading-none whitespace-nowrap cursor-pointer select-none"
           >
             Files in this room
           </h2>
@@ -522,131 +561,142 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-[144px] h-[36px] bg-white border-[3px] border-[#111111] rounded-[12px] shadow-[2px_3px_0_#111111] flex items-center justify-center gap-[6px] cursor-pointer hover:bg-neutral-50 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_2px_0_#111111] transition-all select-none"
+            className="w-[144px] h-[36px] bg-white border-[1.5px] border-[#111111] rounded-[12px] shadow-[1.5px_2px_0_#111111] flex items-center justify-center gap-[10px] cursor-pointer hover:bg-neutral-50 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[0.5px_1px_0_#111111] transition-all select-none shrink-0"
           >
-            {/* icon-plus.webp at 14px */}
-            <img
-              src="/icon-plus.webp"
-              alt=""
-              width="14"
-              height="14"
-              className="w-[14px] h-[14px] object-contain select-none"
-            />
-            <span className="font-['DM_Sans',sans-serif] font-bold text-[15px] leading-none text-[#111111]">
+            <svg
+              className="w-[14px] h-[14px] shrink-0 select-none"
+              viewBox="0 0 14 14"
+              fill="none"
+            >
+              <path
+                d="M7 2.5V11.5M2.5 7H11.5"
+                stroke="#111111"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+            <span className="font-['Plus_Jakarta_Sans',sans-serif] font-[700] text-[14px] leading-none text-[#0A1020] whitespace-nowrap">
               Add more files
             </span>
           </button>
         </div>
 
-        {/* File Rows List (padding 0 14px, 3px gap) */}
-        <div className="flex-1 overflow-y-auto px-[14px] space-y-[3px] pb-2">
-          {displayFiles.length === 0 && uploadQueue.length === 0 && (
-            <div className="py-12 px-4 text-center">
-              <p className="font-['DM_Sans',sans-serif] font-bold text-[16px] text-[#111111]">No files in this room yet.</p>
-              <p className="font-['DM_Sans',sans-serif] text-[13.5px] text-[#7B7B7B] mt-1">
-                Tap "+ Add more files" above to upload files.
-              </p>
+        {/* Rows list starts 14px below the header row, with 14px side margins, 2px gap between rows */}
+        <div className="flex-1 overflow-y-auto mt-[14px] mx-[14px] flex flex-col gap-[2px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {itemsToDisplay.map((item) => (
+            <div
+              key={item.id}
+              className="w-full h-[61px] min-h-[61px] max-h-[61px] bg-[#FBF7EE] border border-[#E3E0D9] rounded-[13px] pl-[14px] relative flex items-center select-none shrink-0"
+            >
+              {/* Tile: 43px square, radius 11px, 14px from row's left edge */}
+              <div className="absolute left-[14px] top-1/2 -translate-y-1/2 w-[43px] h-[43px] rounded-[11px] overflow-hidden shrink-0 flex items-center justify-center">
+                {renderMobileFileTile(item.name)}
+              </div>
+
+              {/* Name & Size: starts 17px right of tile (57px + 17px = 74px), 14px bold #0A1020, 12px weight 500 #868A8E, 3px gap above */}
+              <div
+                className="absolute left-[74px] w-[145px] flex flex-col justify-center min-w-0"
+                style={{ top: '50%', transform: 'translateY(-50%)' }}
+              >
+                <p
+                  title={item.name}
+                  className="font-['Plus_Jakarta_Sans',sans-serif] font-[700] text-[14px] text-[#0A1020] truncate leading-none"
+                >
+                  {item.name}
+                </p>
+                <p className="font-['Plus_Jakarta_Sans',sans-serif] font-[500] text-[12px] text-[#868A8E] leading-none mt-[3px]">
+                  {formatBytes(item.size)}
+                </p>
+              </div>
+
+              {/* STATUS COLUMN: fixed position starting 233px from screen left edge (233 - 14 = 219px from row left), 96px wide, white-space: nowrap */}
+              <div
+                className="absolute left-[219px] w-[96px] min-w-[96px] max-w-[96px] shrink-0 whitespace-nowrap"
+                style={{ top: '50%', transform: 'translateY(-50%)' }}
+              >
+                {item.status === 'uploaded' && (
+                  <div className="flex items-center gap-[8px] whitespace-nowrap">
+                    <svg
+                      className="w-[14px] h-[14px] shrink-0 select-none"
+                      viewBox="0 0 14 14"
+                      fill="none"
+                    >
+                      <circle cx="7" cy="7" r="7" fill="#1FAD56" />
+                      <path
+                        d="M4.2 7.2L6.1 9.1L9.8 4.9"
+                        stroke="#FFFFFF"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span className="font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[13px] text-[#1FAD56] leading-none whitespace-nowrap">
+                      Uploaded
+                    </span>
+                  </div>
+                )}
+
+                {item.status === 'uploading' && (
+                  <div className="w-[96px] flex flex-col justify-center whitespace-nowrap">
+                    <div className="w-[96px] h-[8px] bg-[#E2E1DF] rounded-full overflow-hidden shrink-0">
+                      <div
+                        className="h-full bg-[#0093FD] rounded-full transition-all duration-200"
+                        style={{ width: `${item.progress ?? 68}%` }}
+                      />
+                    </div>
+                    <span className="font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[12.5px] text-[#1D91DB] leading-none mt-[6px] whitespace-nowrap">
+                      Uploading... {item.progress ?? 68}%
+                    </span>
+                  </div>
+                )}
+
+                {item.status === 'waiting' && (
+                  <div className="flex items-center gap-[8px] whitespace-nowrap">
+                    <svg
+                      className="w-[14px] h-[14px] shrink-0 select-none"
+                      viewBox="0 0 14 14"
+                      fill="none"
+                    >
+                      <circle cx="7" cy="7" r="7" fill="#C6C6C8" />
+                      <path
+                        d="M7 3.5V7H9.5"
+                        stroke="#FFFFFF"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span className="font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[13px] text-[#8B8D91] leading-none whitespace-nowrap">
+                      Waiting...
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Three-dot menu: 3 vertical dots of 4px, 6px apart, #111, centered 17px from row's right edge, 44px hit area */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (item.realFile) setActionFile(item.realFile);
+                }}
+                className="w-[44px] h-[44px] flex flex-col items-center justify-center gap-[6px] cursor-pointer shrink-0 absolute right-[-5px] top-1/2 -translate-y-1/2 select-none"
+                aria-label={`Actions for ${item.name}`}
+              >
+                <span className="w-[4px] h-[4px] rounded-full bg-[#111111] shrink-0" />
+                <span className="w-[4px] h-[4px] rounded-full bg-[#111111] shrink-0" />
+                <span className="w-[4px] h-[4px] rounded-full bg-[#111111] shrink-0" />
+              </button>
             </div>
-          )}
-
-          {/* Real ongoing uploads from queue */}
-          {uploadQueue
-            .filter(q => q.status === 'uploading')
-            .map((qItem, i) => (
-              <div
-                key={`uq-${i}`}
-                className="w-full h-[62px] min-h-[62px] max-h-[62px] bg-[#FBF6EC] border-[1.5px] border-[#E6E0D4] rounded-[16px] pl-[14px] pr-[12px] flex items-center justify-between relative"
-              >
-                {/* 42px FileTypeIcon + Info (truncates with at least 12px gap to status chip) */}
-                <div className="flex items-center min-w-0 flex-1 mr-[12px]">
-                  <FileTypeIcon filename={qItem.name} size="mobile" />
-                  <div className="ml-[17px] min-w-0 flex-1">
-                    <p className="font-['DM_Sans',sans-serif] font-bold text-[15px] text-[#111111] leading-tight truncate">
-                      {qItem.name}
-                    </p>
-                    <p className="font-['DM_Sans',sans-serif] font-medium text-[13px] text-[#7B7B7B] leading-none mt-[2px]">
-                      {formatBytes(qItem.size)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Status Column: fixed width 124px aligned across all rows */}
-                <div className="w-[124px] shrink-0 flex items-center justify-center">
-                  <StatusChip
-                    variant="uploading"
-                    progress={qItem.progress}
-                    size="mobile"
-                  />
-                </div>
-
-                {/* Three-dot row menu using icon-dots-vertical.webp (about 4px wide x 16px tall) */}
-                <button
-                  type="button"
-                  disabled
-                  className="w-[44px] h-[44px] flex items-center justify-center cursor-default shrink-0 opacity-40 ml-1"
-                >
-                  <img
-                    src="/icon-dots-vertical.webp"
-                    alt=""
-                    width="4"
-                    height="16"
-                    className="w-[4px] h-[16px] object-contain select-none"
-                  />
-                </button>
-              </div>
-            ))}
-
-          {/* Render real room files */}
-          {displayFiles.map((file) => {
-            return (
-              <div
-                key={file.id}
-                className="w-full h-[62px] min-h-[62px] max-h-[62px] bg-[#FBF6EC] border-[1.5px] border-[#E6E0D4] rounded-[16px] pl-[14px] pr-[12px] flex items-center justify-between relative"
-              >
-                {/* 42px FileTypeIcon + Name & Size (truncates with at least 12px gap to status chip) */}
-                <div className="flex items-center min-w-0 flex-1 mr-[12px]">
-                  <FileTypeIcon filename={file.originalFilename} size="mobile" />
-                  <div className="ml-[17px] min-w-0 flex-1">
-                    <p className="font-['DM_Sans',sans-serif] font-bold text-[15px] text-[#111111] leading-tight truncate">
-                      {file.originalFilename}
-                    </p>
-                    <p className="font-['DM_Sans',sans-serif] font-medium text-[13px] text-[#7B7B7B] leading-none mt-[2px]">
-                      {formatBytes(file.sizeBytes)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Status Column: fixed width 124px aligned across all rows */}
-                <div className="w-[124px] shrink-0 flex items-center justify-center">
-                  <StatusChip variant="uploaded" label="Uploaded" size="mobile" />
-                </div>
-
-                {/* Three-dot row menu: icon-dots-vertical.webp (about 4px wide x 16px tall, 44px hit area) */}
-                <button
-                  type="button"
-                  onClick={() => setActionFile(file)}
-                  className="w-[44px] h-[44px] flex items-center justify-center cursor-pointer shrink-0 ml-1"
-                  aria-label={`Actions for ${file.originalFilename}`}
-                >
-                  <img
-                    src="/icon-dots-vertical.webp"
-                    alt="Actions"
-                    width="4"
-                    height="16"
-                    className="w-[4px] h-[16px] object-contain select-none"
-                  />
-                </button>
-              </div>
-            );
-          })}
+          ))}
         </div>
 
         {/* Sticky "Share link" button using icon-link-on-yellow.webp at 22px */}
-        <div className="px-[12px] pt-[8px] pb-[max(12px,env(safe-area-inset-bottom))] bg-[#FBF6EC] shrink-0">
+        <div className="mt-[18px] mx-[12px] pb-[max(14px,env(safe-area-inset-bottom))] shrink-0">
           <button
             type="button"
             onClick={handleShareLink}
-            className="w-full h-[44px] rounded-[14px] bg-[#FED232] border-[3px] border-[#111111] shadow-[3px_4px_0_#111111] font-['Poppins',sans-serif] font-extrabold text-[18px] text-[#111111] flex items-center justify-center gap-[10px] cursor-pointer active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_2px_0_#111111] transition-all select-none"
+            className="w-full h-[43px] rounded-[14px] bg-[#FED232] border-[2px] border-[#111111] shadow-[2px_3px_0_#111111] font-['Plus_Jakarta_Sans',sans-serif] font-[800] text-[18px] text-[#0A1020] flex items-center justify-center gap-[10px] cursor-pointer hover:brightness-95 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_2px_0_#111111] transition-all select-none"
           >
             {/* Link Icon (icon-link-on-yellow.webp at 22px) */}
             <img
@@ -668,16 +718,16 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
             className="fixed inset-0"
             onClick={() => setActionFile(null)}
           />
-          <div className="w-full max-w-md bg-white border-t-[3px] border-x-[3px] border-[#111111] rounded-t-[22px] shadow-[0_-4px_0_#111111] p-5 z-10 animate-in slide-in-from-bottom font-['DM_Sans',sans-serif]">
+          <div className="w-full max-w-md bg-[#FEF6EB] border-t-[1.5px] border-x-[1.5px] border-[#111111] rounded-t-[28px] p-5 z-10 animate-in slide-in-from-bottom font-['Plus_Jakarta_Sans',sans-serif] antialiased">
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+            <div className="flex items-center justify-between pb-3">
               <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
-                <FileTypeIcon filename={actionFile.originalFilename} size="mobile" />
+                {renderMobileFileTile(actionFile.originalFilename)}
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-[15px] text-[#111111] truncate">
+                  <p className="font-bold text-[15px] text-[#0A1020] truncate">
                     {actionFile.originalFilename}
                   </p>
-                  <p className="text-[13px] text-[#7B7B7B]">
+                  <p className="font-medium text-[13px] text-[#868A8E]">
                     {formatBytes(actionFile.sizeBytes)}
                   </p>
                 </div>
@@ -685,22 +735,22 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
               <button
                 type="button"
                 onClick={() => setActionFile(null)}
-                className="w-8 h-8 rounded-full border-2 border-[#111111] flex items-center justify-center cursor-pointer hover:bg-gray-100"
+                className="w-8 h-8 rounded-full border-[1.5px] border-[#111111] flex items-center justify-center cursor-pointer hover:bg-neutral-100"
                 aria-label="Close"
               >
-                <X className="w-4 h-4 text-[#111111]" />
+                <X className="w-4 h-4 text-[#0A1020]" />
               </button>
             </div>
 
             {/* Actions: Download, Remove, Copy Link */}
-            <div className="space-y-2 mt-4">
+            <div className="space-y-2 mt-4 font-['Plus_Jakarta_Sans',sans-serif]">
               <button
                 type="button"
                 onClick={() => {
                   onDownloadFile(actionFile);
                   setActionFile(null);
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] hover:bg-[#FBF6EC] font-bold text-[15px] text-[#111111] cursor-pointer"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] hover:bg-[#FBF7EE] font-bold text-[15px] text-[#0A1020] cursor-pointer"
               >
                 <div className="w-9 h-9 rounded-[10px] bg-[#FED232] border-2 border-[#111111] flex items-center justify-center shrink-0 shadow-[2px_2px_0_#111111]">
                   <Download className="w-4 h-4 text-[#111111] stroke-[2.5]" />
@@ -729,7 +779,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
                   setTimeout(() => setToastMessage(null), 2000);
                   setActionFile(null);
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] hover:bg-[#FBF6EC] font-bold text-[15px] text-[#111111] cursor-pointer"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] hover:bg-[#FBF7EE] font-bold text-[15px] text-[#0A1020] cursor-pointer"
               >
                 <div className="w-9 h-9 rounded-[10px] bg-white border-2 border-[#111111] flex items-center justify-center shrink-0 shadow-[2px_2px_0_#111111]">
                   <Copy className="w-4 h-4 text-[#111111] stroke-[2.5]" />

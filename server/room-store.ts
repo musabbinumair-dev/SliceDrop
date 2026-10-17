@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { Room, StoredFile, RoomPublicView } from './types.ts';
+import type { Room, StoredFile, RoomPublicView } from './types.ts';
 import {
   generateRoomCode,
   generateId,
@@ -8,7 +8,7 @@ import {
   MAX_ROOM_LIFETIME_MS,
   SlidingWindowRateLimiter,
 } from './room-utils.ts';
-import { StorageEngine } from './storage/storage-engine.ts';
+import type { StorageEngine } from './storage/storage-engine.ts';
 
 export class RoomStore {
   private rooms: Map<string, Room> = new Map(); // Keyed by roomId

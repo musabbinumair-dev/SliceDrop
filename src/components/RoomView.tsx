@@ -48,19 +48,21 @@ interface RoomViewProps {
 const getFileTileConfig = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   if (ext === 'pdf') {
-    return { bg: '#FC3A76', type: 'pdf', icon: '/icon-pdf-room.webp', label: 'PDF' };
+    return { bg: '#F73F75', type: 'pdf', icon: '/icon-pdf-room.webp', label: 'PDF' };
   }
   if (['jpg', 'jpeg', 'png', 'webp', 'heic', 'gif', 'svg', 'bmp'].includes(ext)) {
-    return { bg: '#7E62F3', type: 'image', icon: '/icon-image-purple.webp', label: 'IMG' };
+    return { bg: '#7152EB', type: 'image', icon: '/icon-image-purple.webp', label: 'IMG' };
   }
   if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
-    return { bg: '#40B946', type: 'zip', icon: '/icon-zip-green.webp', label: 'ZIP' };
+    return { bg: '#51A953', type: 'zip', icon: '/icon-zip-green.webp', label: 'ZIP' };
   }
   if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) {
-    return { bg: '#FF7617', type: 'video', icon: '/icon-video-orange.webp', label: 'VID' };
+    return { bg: '#FC8828', type: 'video', icon: '/icon-video-orange.webp', label: 'VID' };
   }
   return { bg: '#6B7280', type: 'other', label: ext.toUpperCase().slice(0, 4) || 'FILE' };
 };
+
+const INITIAL_DEMO_STAGED: StagedFile[] = [];
 
 export const RoomView: React.FC<RoomViewProps> = ({
   room,
@@ -77,7 +79,8 @@ export const RoomView: React.FC<RoomViewProps> = ({
   onCreateNewRoom,
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>(INITIAL_DEMO_STAGED);
+  const [isBtnHovered, setIsBtnHovered] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(room?.expiresInSeconds || 3600);
@@ -184,13 +187,26 @@ export const RoomView: React.FC<RoomViewProps> = ({
 
   const handleCreateRoom = async () => {
     const validFiles = stagedFiles
-      .filter(s => !s.rejected && s.file)
-      .map(s => s.file as File);
+      .filter(s => !s.rejected)
+      .map(s => {
+        if (s.file) return s.file;
+        return new File([new Blob(['Sample file content for demo transfer'])], s.name, {
+          type: s.name.endsWith('.pdf')
+            ? 'application/pdf'
+            : s.name.endsWith('.jpg')
+            ? 'image/jpeg'
+            : 'application/zip',
+        });
+      });
 
     if (validFiles.length === 0) return;
 
     try {
-      await onCreateNewRoom(validFiles);
+      if (isRealRoom && onFileUpload) {
+        await onFileUpload(validFiles);
+      } else {
+        await onCreateNewRoom(validFiles);
+      }
       setStagedFiles([]);
     } catch (err) {
       console.error('Error creating room from staged files:', err);
@@ -428,11 +444,10 @@ export const RoomView: React.FC<RoomViewProps> = ({
           <div
             style={
               {
-                '--lu': 'clamp(0.5px, calc(100vw / 1487), 1.15px)',
+                '--lu': 'clamp(0.5px, calc(100vw / 1487), 1px)',
                 width: '100%',
-                minWidth: 0,
+                maxWidth: 'calc(572 * var(--lu))',
                 position: 'relative',
-                height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
               } as React.CSSProperties
@@ -450,17 +465,16 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 backgroundColor: '#8562FC',
                 pointerEvents: 'none',
                 userSelect: 'none',
-                zIndex: -1,
+                zIndex: 0,
               }}
               aria-hidden="true"
             />
 
-            {/* CARD: 572px wide, bg #FCF9F2, 3px solid #111, radius 22px, hard shadow 5px 5px 0 #111, inner padding 32px left/right, 24px top/bottom */}
+            {/* CARD: Width 572px, bg #FCF9F2, border 3px solid #111, radius 22px, hard shadow 5px 5px 0 #111 (no blur). Inner padding: 32px left and right, 24px top and bottom */}
             <div
               style={{
                 width: '100%',
                 maxWidth: 'calc(572 * var(--lu))',
-                height: '100%',
                 backgroundColor: '#FCF9F2',
                 border: 'calc(3 * var(--lu)) solid #111111',
                 borderRadius: 'calc(22 * var(--lu))',
@@ -470,9 +484,8 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 boxSizing: 'border-box',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between',
+                zIndex: 1,
               }}
-              className="flex flex-col"
             >
               {/* 1. BACK ROW: center at y=38 from card top, gap: 12px */}
               <button
@@ -483,6 +496,10 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   fontWeight: 600,
                   color: '#111111',
                   gap: 'calc(12 * var(--lu))',
+                  height: 'calc(28 * var(--lu))',
+                  padding: 0,
+                  background: 'none',
+                  border: 'none',
                 }}
                 className="flex items-center hover:opacity-75 transition-opacity cursor-pointer w-fit leading-none whitespace-nowrap select-none"
                 aria-label="Back to home"
@@ -493,19 +510,26 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   style={{ width: 'calc(18 * var(--lu))', height: 'calc(18 * var(--lu))' }}
                   className="object-contain shrink-0"
                 />
-                <span>{isRealRoom ? 'Back to home' : 'Create a sharing room'}</span>
+                <span>Create a sharing room</span>
               </button>
 
-              {/* 2. HEADLINE: top ~42px below back row, line pitch 48px, font-size ~52px, line-height ~0.92, weight 800 */}
+              {/* 2. HEADLINE: top ~42px below back row, line pitch 48px (font-size ~52px, line-height ~0.92), weight 800, color #111, letter-spacing -0.02em */}
               <div
                 style={{
                   marginTop: 'calc(42 * var(--lu))',
                   fontFamily: "'Plus Jakarta Sans', 'Outfit', 'Poppins', sans-serif",
+                  position: 'relative',
                 }}
-                className="relative"
               >
-                {/* Line 1: "Add your files" + Pink sparkle (~48px wide, placed after "files", 6px higher than text top) */}
-                <div className="flex items-center whitespace-nowrap relative">
+                {/* Line 1: "Add your files" + Pink sparkle (~48px wide, placed after "files" at x=370 from card's left edge, 6px higher than text top) */}
+                <div
+                  style={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   <span
                     style={{
                       fontSize: 'calc(52 * var(--lu))',
@@ -515,52 +539,54 @@ export const RoomView: React.FC<RoomViewProps> = ({
                       letterSpacing: '-0.02em',
                     }}
                   >
-                    {isRealRoom ? 'Upload files' : 'Add your files'}
+                    Add your files
                   </span>
                   <img
                     src="/sparkle-pink-title.webp"
                     alt=""
                     style={{
+                      position: 'absolute',
+                      left: 'calc(338 * var(--lu))',
+                      top: 'calc(-6 * var(--lu))',
                       width: 'calc(48 * var(--lu))',
                       height: 'calc(48 * var(--lu))',
-                      marginLeft: 'calc(14 * var(--lu))',
-                      transform: 'translateY(calc(-6 * var(--lu)))',
                     }}
                     className="object-contain pointer-events-none select-none shrink-0"
                   />
                 </div>
                 {/* Line 2: "and create a room." */}
-                <div className="whitespace-nowrap" style={{ marginTop: 'calc(4 * var(--lu))' }}>
-                  <span
-                    style={{
-                      fontSize: 'calc(52 * var(--lu))',
-                      lineHeight: 0.92,
-                      fontWeight: 800,
-                      color: '#111111',
-                      letterSpacing: '-0.02em',
-                    }}
-                  >
-                    {isRealRoom ? 'to this room.' : 'and create a room.'}
-                  </span>
+                <div
+                  style={{
+                    fontSize: 'calc(52 * var(--lu))',
+                    lineHeight: 0.92,
+                    fontWeight: 800,
+                    color: '#111111',
+                    letterSpacing: '-0.02em',
+                    marginTop: 'calc(4 * var(--lu))',
+                    width: 'fit-content',
+                    maxWidth: 'calc(460 * var(--lu))',
+                  }}
+                  className="whitespace-nowrap"
+                >
+                  and create a room.
                 </div>
               </div>
 
-              {/* 3. SUBTITLE: 12px below headline, 17px, weight 500, #5E6470, one line */}
+              {/* 3. SUBTITLE: 12px below headline, 17px, weight 500, slate gray #5E6470, one line (about 455px wide) */}
               <p
                 style={{
                   fontSize: 'calc(17 * var(--lu))',
                   fontWeight: 500,
                   color: '#5E6470',
                   marginTop: 'calc(12 * var(--lu))',
+                  maxWidth: 'calc(455 * var(--lu))',
                 }}
                 className="whitespace-nowrap leading-tight"
               >
-                {isRealRoom
-                  ? 'Drop files here or click to browse and share instantly.'
-                  : 'Upload files, get a 6-digit code and share it anywhere.'}
+                Upload files, get a 6-digit code and share it anywhere.
               </p>
 
-              {/* 4. DROPZONE: gap above: 28px, 508px x 246px, 2px dashed #C9C9C9, radius 14px, no fill */}
+              {/* 4. DROPZONE (gap above: 28px): 508px wide x 246px high, 2px DASHED border #C9C9C9, radius 14px, no fill */}
               <div
                 onDragOver={e => {
                   e.preventDefault();
@@ -587,7 +613,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   borderColor: isDragging ? '#111111' : '#C9C9C9',
                   borderStyle: 'dashed',
                   marginTop: 'calc(28 * var(--lu))',
-                  backgroundColor: isDragging ? 'rgba(254, 210, 40, 0.1)' : 'transparent',
+                  backgroundColor: isDragging ? 'rgba(254, 210, 40, 0.08)' : 'transparent',
                   paddingTop: 'calc(24 * var(--lu))',
                   boxSizing: 'border-box',
                 }}
@@ -627,7 +653,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   or click to browse
                 </p>
 
-                {/* Gray pill centered, 12px below, height 25px, radius 999px, bg #EAEBED, text 12.5px weight 500 #555 */}
+                {/* Gray pill centered, 12px below: height 25px, radius 999px, bg #EAEBED, text 12.5px weight 500 #555 */}
                 <div
                   style={{
                     marginTop: 'calc(12 * var(--lu))',
@@ -648,7 +674,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 </div>
               </div>
 
-              {/* 5. SELECTED FILES BOX: gap above 20px, 508px wide, bg #FCFBF6, border 1px solid #E0DED8, radius 10px, padding 16px */}
+              {/* 5. SELECTED FILES BOX (gap above: 20px): 508px wide, bg #FCFBF6, border 1px solid #E0DED8, radius 10px, padding 16px */}
               <div
                 style={{
                   width: '100%',
@@ -662,7 +688,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 }}
                 className="flex flex-col"
               >
-                {/* Header: "Selected files (N)" 16px weight 700, "Total: X MB" 13px weight 500 #666 */}
+                {/* Header: "Selected files (N)" 16px weight 700 on left, "Total: X MB" 13px weight 500 #666 on right, 14px below it first row */}
                 <div
                   style={{ marginBottom: 'calc(14 * var(--lu))' }}
                   className="flex items-center justify-between"
@@ -713,144 +739,79 @@ export const RoomView: React.FC<RoomViewProps> = ({
                         <div
                           key={s.id}
                           style={{
+                            position: 'relative',
                             width: '100%',
                             maxWidth: 'calc(480 * var(--lu))',
                             height: 'calc(66 * var(--lu))',
-                            minHeight: 'calc(66 * var(--lu))',
                             backgroundColor: '#FBFAF5',
                             border: 'calc(1 * var(--lu)) solid #D9D5CC',
                             borderRadius: 'calc(8 * var(--lu))',
                             padding: '0 calc(16 * var(--lu)) 0 calc(10 * var(--lu))',
                             boxSizing: 'border-box',
                           }}
-                          className="flex items-center justify-between shrink-0"
+                          className="shrink-0"
                         >
-                          {/* Left: Tile (46x46, radius 8px) + File name & size */}
-                          <div className="flex items-center min-w-0 flex-1 mr-[calc(12 * var(--lu))]">
-                            {/* File Tile: 46x46px, radius 8px */}
-                            <div
-                              style={{
-                                width: 'calc(46 * var(--lu))',
-                                height: 'calc(46 * var(--lu))',
-                                borderRadius: 'calc(8 * var(--lu))',
-                                backgroundColor: tileConfig.bg,
-                              }}
-                              className="flex items-center justify-center shrink-0 select-none"
-                            >
-                              {tileConfig.type === 'pdf' ? (
-                                <span
-                                  style={{
-                                    fontSize: 'calc(14 * var(--lu))',
-                                    fontWeight: 700,
-                                    color: '#ffffff',
-                                  }}
-                                  className="font-bold tracking-tight"
-                                >
-                                  PDF
-                                </span>
-                              ) : tileConfig.type === 'image' ? (
-                                <svg
-                                  style={{
-                                    width: 'calc(24 * var(--lu))',
-                                    height: 'calc(24 * var(--lu))',
-                                  }}
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="#ffffff"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                  <circle cx="8.5" cy="8.5" r="1.5" />
-                                  <polyline points="21 15 16 10 5 21" />
-                                </svg>
-                              ) : tileConfig.type === 'zip' ? (
-                                <svg
-                                  style={{
-                                    width: 'calc(24 * var(--lu))',
-                                    height: 'calc(24 * var(--lu))',
-                                  }}
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="#ffffff"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <path d="M10 2v2M14 4v2M10 6v2M14 8v2M10 10v2M14 12v2M10 14h4v6a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-6z" />
-                                  <rect x="4" y="2" width="16" height="20" rx="2" />
-                                </svg>
-                              ) : tileConfig.type === 'video' ? (
-                                <svg
-                                  style={{
-                                    width: 'calc(24 * var(--lu))',
-                                    height: 'calc(24 * var(--lu))',
-                                  }}
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="#ffffff"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <polygon points="23 7 16 12 23 17 23 7" />
-                                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                                </svg>
-                              ) : (
-                                <span
-                                  style={{
-                                    fontSize: 'calc(12 * var(--lu))',
-                                    fontWeight: 700,
-                                    color: '#ffffff',
-                                  }}
-                                  className="font-bold tracking-tight"
-                                >
-                                  {tileConfig.label}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Name & size: name 16px weight 700 at x=67px from row left (10 + 46 + 11 = 67px), size 13px weight 500 #666 with 4px gap */}
-                            <div
-                              style={{
-                                marginLeft: 'calc(11 * var(--lu))',
-                                paddingTop: 'calc(2 * var(--lu))',
-                              }}
-                              className="min-w-0 flex-1 flex flex-col justify-center"
-                            >
-                              <p
-                                style={{
-                                  fontSize: 'calc(16 * var(--lu))',
-                                  fontWeight: 700,
-                                  color: '#111111',
-                                }}
-                                className="leading-tight truncate whitespace-nowrap"
-                              >
-                                {s.name}
-                              </p>
-                              <p
-                                style={{
-                                  fontSize: 'calc(13 * var(--lu))',
-                                  fontWeight: 500,
-                                  color: '#666666',
-                                  marginTop: 'calc(4 * var(--lu))',
-                                }}
-                                className="leading-none whitespace-nowrap"
-                              >
-                                {formatBytes(s.size)}
-                              </p>
-                            </div>
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: 'calc(10 * var(--lu))',
+                              top: 'calc(10 * var(--lu))',
+                              width: 'calc(46 * var(--lu))',
+                              height: 'calc(46 * var(--lu))',
+                            }}
+                            className="flex items-center justify-center shrink-0 select-none overflow-hidden rounded-[8px]"
+                          >
+                            <FileTypeIcon filename={s.name} size="desktop" className="w-full h-full object-contain" />
                           </div>
 
-                          {/* Remove icon: X (icon-close-x.webp ~18px) vertically centered, 20px from row's right edge */}
+                          {/* File name: 16px weight 700 #111 at x=67px from the row's left, vertically 14px from the top; size: 13px weight 500 #666 below it, 4px gap. Long names truncate with ellipsis, never wrap. */}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: 'calc(67 * var(--lu))',
+                              top: 'calc(14 * var(--lu))',
+                              right: 'calc(48 * var(--lu))',
+                            }}
+                          >
+                            <p
+                              style={{
+                                fontSize: 'calc(16 * var(--lu))',
+                                fontWeight: 700,
+                                color: '#111111',
+                                lineHeight: 1.15,
+                              }}
+                              className="truncate whitespace-nowrap overflow-hidden"
+                            >
+                              {s.name}
+                            </p>
+                            <p
+                              style={{
+                                fontSize: 'calc(13 * var(--lu))',
+                                fontWeight: 500,
+                                color: '#666666',
+                                marginTop: 'calc(4 * var(--lu))',
+                                lineHeight: 1,
+                              }}
+                              className="whitespace-nowrap"
+                            >
+                              {formatBytes(s.size)}
+                            </p>
+                          </div>
+
+                          {/* Remove icon: X (icon-close-x.webp ~18px, 2px black stroke) vertically centered, 20px from row's right edge */}
                           <button
                             type="button"
                             onClick={e => handleRemoveStagedFile(s.id, e)}
                             style={{
-                              width: 'calc(24 * var(--lu))',
-                              height: 'calc(24 * var(--lu))',
-                              marginRight: 'calc(4 * var(--lu))',
+                              position: 'absolute',
+                              right: 'calc(20 * var(--lu))',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              width: 'calc(18 * var(--lu))',
+                              height: 'calc(18 * var(--lu))',
+                              padding: 0,
+                              background: 'none',
+                              border: 'none',
                             }}
                             className="flex items-center justify-center cursor-pointer shrink-0 hover:opacity-70 transition-opacity"
                             title="Remove"
@@ -873,7 +834,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 )}
               </div>
 
-              {/* 6. CREATE ROOM BUTTON: gap above 28px, centered, 435px x 62px, bg #FED22E, border 3px solid #111, radius 12px, shadow 5px 6px 0 #111 */}
+              {/* 6. CREATE ROOM BUTTON (gap above: 28px): Centered, 435px wide x 62px high, bg #FED22E, border 3px solid #111, radius 12px, hard shadow 5px 6px 0 #111 */}
               <div
                 style={{
                   marginTop: 'calc(28 * var(--lu))',
@@ -885,14 +846,14 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 }}
                 className="shrink-0"
               >
-                {/* Left sparkle: ~24px wide at 34px from card's left edge near button's top */}
+                {/* Left sparkle: ~24px wide at 34px from card's left edge near button's top (34 - 32 = 2px) */}
                 <img
                   src="/sparkle-lines-btn-left.webp"
                   alt=""
                   style={{
                     position: 'absolute',
                     left: 'calc(2px * var(--lu))',
-                    top: 'calc(2 * var(--lu))',
+                    top: 'calc(4 * var(--lu))',
                     width: 'calc(24 * var(--lu))',
                     height: 'calc(24 * var(--lu))',
                   }}
@@ -902,13 +863,11 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    if (isRealRoom) {
-                      fileInputRef.current?.click();
-                    } else {
-                      handleCreateRoom();
-                    }
+                    handleCreateRoom();
                   }}
-                  disabled={!isRealRoom && (stagedFiles.length === 0 || stagedFiles.every(s => s.rejected))}
+                  onMouseEnter={() => setIsBtnHovered(true)}
+                  onMouseLeave={() => setIsBtnHovered(false)}
+                  disabled={stagedFiles.length === 0 || stagedFiles.every(s => s.rejected)}
                   style={{
                     width: 'calc(435 * var(--lu))',
                     height: 'calc(62 * var(--lu))',
@@ -916,23 +875,30 @@ export const RoomView: React.FC<RoomViewProps> = ({
                     border: 'calc(3 * var(--lu)) solid #111111',
                     gap: 'calc(12 * var(--lu))',
                     backgroundColor:
-                      !isRealRoom && (stagedFiles.length === 0 || stagedFiles.every(s => s.rejected))
+                      stagedFiles.length === 0 || stagedFiles.every(s => s.rejected)
                         ? '#EDEBE6'
                         : '#FED22E',
                     boxShadow:
-                      !isRealRoom && (stagedFiles.length === 0 || stagedFiles.every(s => s.rejected))
+                      stagedFiles.length === 0 || stagedFiles.every(s => s.rejected)
                         ? 'none'
+                        : isBtnHovered
+                        ? 'calc(3 * var(--lu)) calc(3 * var(--lu)) 0 #111111'
                         : 'calc(5 * var(--lu)) calc(6 * var(--lu)) 0 #111111',
+                    transform:
+                      !(stagedFiles.length === 0 || stagedFiles.every(s => s.rejected)) && isBtnHovered
+                        ? 'translate(calc(2 * var(--lu)), calc(2 * var(--lu)))'
+                        : 'none',
+                    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
                     color:
-                      !isRealRoom && (stagedFiles.length === 0 || stagedFiles.every(s => s.rejected))
+                      stagedFiles.length === 0 || stagedFiles.every(s => s.rejected)
                         ? '#8E8D88'
                         : '#111111',
+                    cursor:
+                      stagedFiles.length === 0 || stagedFiles.every(s => s.rejected)
+                        ? 'not-allowed'
+                        : 'pointer',
                   }}
-                  className={`flex items-center justify-center font-heading font-extrabold select-none transition-all ${
-                    !isRealRoom && (stagedFiles.length === 0 || stagedFiles.every(s => s.rejected))
-                      ? 'cursor-not-allowed opacity-80'
-                      : 'cursor-pointer hover:translate-x-[calc(2*var(--lu))] hover:translate-y-[calc(2*var(--lu))] hover:shadow-[calc(3*var(--lu))_calc(4*var(--lu))_0_#111111]'
-                  }`}
+                  className="flex items-center justify-center font-heading font-extrabold select-none"
                 >
                   <img
                     src="/mascot-pizza.webp"
@@ -947,18 +913,18 @@ export const RoomView: React.FC<RoomViewProps> = ({
                     style={{ fontSize: 'calc(22 * var(--lu))', fontWeight: 800 }}
                     className="font-heading leading-none whitespace-nowrap"
                   >
-                    {isRealRoom ? 'Upload more files' : 'Create Room'}
+                    Create Room
                   </span>
                 </button>
 
-                {/* Right sparkle: ~24px wide at 20px from card's right edge near button's bottom */}
+                {/* Right sparkle: ~24px wide at 20px from card's right edge near button's bottom (20 - 32 = -12px) */}
                 <img
                   src="/sparkle-lines-btn-right.webp"
                   alt=""
                   style={{
                     position: 'absolute',
                     right: 'calc(-12px * var(--lu))',
-                    bottom: 'calc(2 * var(--lu))',
+                    bottom: 'calc(4 * var(--lu))',
                     width: 'calc(24 * var(--lu))',
                     height: 'calc(24 * var(--lu))',
                   }}
@@ -1415,77 +1381,55 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 }}
               >
                 {/* Upload queue items */}
-                {uploadQueue.map((item, idx) => {
-                  const tileConfig = getFileTileConfig(item.name);
-                  const isUploading = item.status === 'uploading';
-                  const isWaiting = (item.status as string) === 'waiting';
-                  const isCompleted = item.status === 'completed';
-                  const isError = item.status === 'error';
+                {uploadQueue
+                  .filter(item => item.status !== 'completed' && !roomFiles.some(f => f.originalFilename === item.name))
+                  .map((item, idx) => {
+                    const isUploading = item.status === 'uploading';
+                    const isWaiting = (item.status as string) === 'waiting';
+                    const isCompleted = item.status === 'completed';
+                    const isError = item.status === 'error';
 
-                  return (
-                    <div
-                      key={`uq-${idx}`}
-                      style={{
-                        width: '100%',
-                        height: 'calc(74 * var(--ru))',
-                        backgroundColor: '#FCFBF6',
-                        border: 'calc(1 * var(--ru)) solid #E9E8E3',
-                        borderRadius: 'calc(12 * var(--ru))',
-                        paddingLeft: 'calc(18 * var(--ru))',
-                        paddingRight: 'calc(18 * var(--ru))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexShrink: 0,
-                        boxSizing: 'border-box',
-                      }}
-                    >
-                      {/* Left side: File tile + File name & size */}
+                    return (
                       <div
+                        key={`uq-${idx}`}
                         style={{
+                          width: '100%',
+                          height: 'calc(74 * var(--ru))',
+                          backgroundColor: '#FCFBF6',
+                          border: 'calc(1 * var(--ru)) solid #E9E8E3',
+                          borderRadius: 'calc(12 * var(--ru))',
+                          paddingLeft: 'calc(18 * var(--ru))',
+                          paddingRight: 'calc(18 * var(--ru))',
                           display: 'flex',
                           alignItems: 'center',
-                          minWidth: 0,
+                          justifyContent: 'space-between',
+                          flexShrink: 0,
+                          boxSizing: 'border-box',
                         }}
                       >
-                        {/* File tile: 46x46px, radius 10px */}
+                        {/* Left side: File tile + File name & size */}
                         <div
                           style={{
-                            width: 'calc(46 * var(--ru))',
-                            height: 'calc(46 * var(--ru))',
-                            borderRadius: 'calc(10 * var(--ru))',
-                            backgroundColor: tileConfig.bg,
-                            overflow: 'hidden',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
+                            minWidth: 0,
                           }}
                         >
-                          {tileConfig.icon ? (
-                            <img
-                              src={tileConfig.icon}
-                              alt=""
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'contain',
-                              }}
-                              className="shrink-0 select-none"
-                            />
-                          ) : (
-                            <span
-                              style={{
-                                fontSize: 'calc(13 * var(--ru))',
-                                fontWeight: 700,
-                                color: '#ffffff',
-                              }}
-                              className="font-heading"
-                            >
-                              {tileConfig.label}
-                            </span>
-                          )}
-                        </div>
+                          {/* File tile: 46x46px, radius 10px */}
+                          <div
+                            style={{
+                              width: 'calc(46 * var(--ru))',
+                              height: 'calc(46 * var(--ru))',
+                              borderRadius: 'calc(10 * var(--ru))',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <FileTypeIcon filename={item.name} size="desktop" className="w-full h-full object-contain" />
+                          </div>
 
                         {/* File name (starts 22px right of tile, 16px/700) + size (13px/500 #666, 4px gap) */}
                         <div
@@ -1802,13 +1746,11 @@ export const RoomView: React.FC<RoomViewProps> = ({
                           minWidth: 0,
                         }}
                       >
-                        {/* File tile: 46x46px, radius 10px */}
                         <div
                           style={{
                             width: 'calc(46 * var(--ru))',
                             height: 'calc(46 * var(--ru))',
                             borderRadius: 'calc(10 * var(--ru))',
-                            backgroundColor: tileConfig.bg,
                             overflow: 'hidden',
                             display: 'flex',
                             alignItems: 'center',
@@ -1816,29 +1758,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                             flexShrink: 0,
                           }}
                         >
-                          {tileConfig.icon ? (
-                            <img
-                              src={tileConfig.icon}
-                              alt=""
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'contain',
-                              }}
-                              className="shrink-0 select-none"
-                            />
-                          ) : (
-                            <span
-                              style={{
-                                fontSize: 'calc(13 * var(--ru))',
-                                fontWeight: 700,
-                                color: '#ffffff',
-                              }}
-                              className="font-heading"
-                            >
-                              {tileConfig.label}
-                            </span>
-                          )}
+                          <FileTypeIcon filename={file.originalFilename} size="desktop" className="w-full h-full object-contain" />
                         </div>
 
                         {/* File name (starts 22px right of tile, 16px/700) + size (13px/500 #666, 4px gap) */}
