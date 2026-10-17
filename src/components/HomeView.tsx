@@ -149,47 +149,47 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
         {/* Left Blobs */}
         <img
-          src="/bg-left-blobs.webp"
+          src="/assets/blobs/bg-left-blobs.webp"
           alt=""
           className="absolute left-0 top-[20px] sm:top-[30px] h-[88vh] max-h-[820px] w-auto object-contain opacity-95 hidden sm:block"
         />
 
         {/* Right Blobs */}
         <img
-          src="/bg-right-blobs.webp"
+          src="/assets/blobs/bg-right-blobs.webp"
           alt=""
           className="absolute right-0 top-[20px] sm:top-[30px] h-[88vh] max-h-[820px] w-auto object-contain opacity-95 hidden sm:block"
         />
 
         {/* Mascot Pizza: sitting on pink left blob, left of headline */}
         <img
-          src="/mascot-pizza.webp"
+          src="/assets/illustrations/mascot-pizza.webp"
           alt="SliceDrop Mascot"
           className="absolute left-[1.5%] lg:left-[3.5%] xl:left-[5.5%] top-[85px] w-[180px] lg:w-[210px] xl:w-[230px] -rotate-12 hidden md:block z-10"
         />
 
         {/* Scribble Loop: hanging down from top-right purple blob */}
         <img
-          src="/scribble-loop.webp"
+          src="/assets/blobs/scribble-loop.webp"
           alt=""
           className="absolute right-[3%] lg:right-[5%] xl:right-[7%] top-[80px] w-[85px] lg:w-[100px] hidden md:block z-10"
         />
 
         {/* Yellow Blob Ring (far left mid-page) */}
         <img
-          src="/blob-ring-yellow.webp"
+          src="/assets/blobs/blob-ring-yellow.webp"
           alt=""
           className="absolute left-[1%] top-[450px] w-[42px] hidden lg:block z-10"
         />
 
         {/* Right Blob Ring & Pink Triangle */}
         <img
-          src="/blob-ring-right.webp"
+          src="/assets/blobs/blob-ring-right.webp"
           alt=""
           className="absolute right-[2%] top-[340px] w-[38px] hidden lg:block z-10"
         />
         <img
-          src="/shape-pink-triangle.webp"
+          src="/assets/blobs/shape-pink-triangle.webp"
           alt=""
           className="absolute right-[2.5%] top-[430px] w-[44px] hidden lg:block z-10"
         />
@@ -201,12 +201,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="text-center max-w-2xl mx-auto mt-0 mb-3 sm:mb-4 relative">
           {/* Sparkles Upper Left and Upper Right of Headline */}
           <img
-            src="/sparkle-lines-left.webp"
+            src="/assets/sparkles/sparkle-lines-left.webp"
             alt=""
             className="absolute left-[12%] sm:left-[8%] md:left-[4%] -top-2 w-7 sm:w-8 h-7 sm:h-8 object-contain select-none pointer-events-none"
           />
           <img
-            src="/sparkle-lines-right.webp"
+            src="/assets/sparkles/sparkle-lines-right.webp"
             alt=""
             className="absolute right-[12%] sm:right-[8%] md:right-[4%] -top-2 w-7 sm:w-8 h-7 sm:h-8 object-contain select-none pointer-events-none"
           />
@@ -216,7 +216,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="inline-flex items-center justify-center">
               <span>Share a file.</span>
               <img
-                src="/sparkle-pink-dashes.webp"
+                src="/assets/sparkles/sparkle-pink-dashes.webp"
                 alt=""
                 className="w-7 sm:w-9 md:w-10 ml-2 inline-block object-contain"
               />
@@ -243,7 +243,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Header */}
           <div className="flex items-center gap-3 mb-6">
             <button onClick={() => window.history.back()} className="cursor-pointer">
-              <img src="/icon-arrow-left.webp" alt="Back" className="w-6 h-6" />
+              <img src="/assets/icons/icon-arrow-left.webp" alt="Back" className="w-6 h-6" />
             </button>
             <h2 className="font-heading font-extrabold text-xl text-[#111111]">Create a sharing room</h2>
           </div>
@@ -254,7 +254,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <h1 className="font-heading font-extrabold text-[42px] leading-tight text-[#111111] max-w-lg">
                 Add your files and create a room.
               </h1>
-              <img src="/sparkle-lines-right.webp" alt="" className="w-10 h-10 -ml-2 -mt-2" />
+              <img src="/assets/sparkles/sparkle-lines-right.webp" alt="" className="w-10 h-10 -ml-2 -mt-2" />
             </div>
             <p className="text-[#666666] font-medium text-lg mt-2">
               Upload files, get a 6-digit code and share it anywhere.
@@ -269,7 +269,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             onClick={() => fileInputRef.current?.click()}
             className="border-2 border-dashed border-[#D4D4D8] rounded-[20px] p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-[#111111] transition-colors bg-white mb-6"
           >
-            <img src="/mascot-pizza.webp" alt="Pizza" className="w-20 h-20 mb-4" />
+            <img src="/assets/illustrations/mascot-pizza.webp" alt="Pizza" className="w-20 h-20 mb-4" />
             <p className="font-heading font-extrabold text-xl text-[#111111]">Drag & drop files here</p>
             <p className="font-semibold text-[#111111] mb-4">or click to browse</p>
             <div className="bg-[#F4F4F5] px-4 py-2 rounded-full text-sm font-bold text-[#71717A]">
@@ -295,7 +295,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       </div>
                     </div>
                     <button className="cursor-pointer" onClick={() => { /* Implement delete */ }}>
-                      <img src="/icon-close.webp" alt="Delete" className="w-5 h-5" />
+                      <img src="/assets/icons/assets/icons/icon-close-x.webp" alt="Delete" className="w-5 h-5" />
                     </button>
                   </div>
                 ))}
@@ -310,10 +310,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
               className="w-full bg-[#FED228] border-[3px] border-[#111111] rounded-[16px] shadow-hard-btn py-5 flex items-center justify-center gap-3 cursor-pointer group relative overflow-hidden"
             >
               {/* Sparkles on the button */}
-              <img src="/sparkle-lines-left.webp" alt="" className="w-6 h-6 absolute left-4 opacity-50" />
-              <img src="/mascot-pizza.webp" alt="Pizza" className="w-8 h-8" />
+              <img src="/assets/sparkles/sparkle-lines-left.webp" alt="" className="w-6 h-6 absolute left-4 opacity-50" />
+              <img src="/assets/illustrations/mascot-pizza.webp" alt="Pizza" className="w-8 h-8" />
               <span className="font-heading font-extrabold text-xl text-[#111111]">Create Room</span>
-              <img src="/sparkle-lines-right.webp" alt="" className="w-6 h-6 absolute right-4 opacity-50" />
+              <img src="/assets/sparkles/sparkle-lines-right.webp" alt="" className="w-6 h-6 absolute right-4 opacity-50" />
             </button>
           </div>
         </div>
@@ -358,7 +358,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <Check className="w-5 h-5 text-[#111111] stroke-[3]" />
                   ) : (
                     <img
-                      src="/icon-copy-gold.webp"
+                      src="/assets/icons/icon-copy-gold.webp"
                       alt="Copy"
                       className="w-5 h-5 sm:w-6 sm:h-6 object-contain"
                     />
@@ -383,12 +383,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
               {/* White rounded QR box with sparkles */}
               <div className="relative shrink-0">
                 <img
-                  src="/sparkle-pink-room.webp"
+                  src="/assets/sparkles/sparkle-pink-room.webp"
                   alt=""
                   className="absolute -top-3 -right-3 w-5 h-5 object-contain z-10 pointer-events-none"
                 />
                 <img
-                  src="/sparkle-pink-qr.webp"
+                  src="/assets/sparkles/sparkle-pink-qr.webp"
                   alt=""
                   className="absolute -bottom-2.5 -left-3 w-5 h-5 object-contain z-10 pointer-events-none"
                 />
@@ -439,7 +439,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Step 1 */}
           <div className="flex items-center gap-3">
             <img
-              src="/step-1-pizza.webp"
+              src="/assets/illustrations/step-1-pizza.webp"
               alt="Step 1"
               className="w-10 h-10 sm:w-11 sm:h-11 object-contain shrink-0"
             />
@@ -461,7 +461,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Step 2 */}
           <div className="flex items-center gap-3">
             <img
-              src="/step-2-pizzabox.webp"
+              src="/assets/illustrations/step-2-pizzabox.webp"
               alt="Step 2"
               className="w-10 h-10 sm:w-11 sm:h-11 object-contain shrink-0"
             />
@@ -483,7 +483,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Step 3 */}
           <div className="flex items-center gap-3">
             <img
-              src="/step-3-globe.webp"
+              src="/assets/illustrations/step-3-globe.webp"
               alt="Step 3"
               className="w-10 h-10 sm:w-11 sm:h-11 object-contain shrink-0"
             />
@@ -550,7 +550,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   title={`Download ${file.originalFilename}`}
                 >
                   <img
-                    src="/icon-download.webp"
+                    src="/assets/icons/icon-download.webp"
                     alt="Download"
                     className="w-5 h-5 object-contain"
                   />

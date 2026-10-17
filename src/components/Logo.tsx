@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Single constant for custom logo path. If empty, the neutral placeholder is displayed.
-export const LOGO_SRC = "/new-brand-logo.png";
+export const LOGO_SRC = "/assets/illustrations/new-brand-logo.png";
 
 interface LogoProps {
   showTagline?: boolean;

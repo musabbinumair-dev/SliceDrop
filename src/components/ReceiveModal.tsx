@@ -98,12 +98,12 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
           title="Close"
           type="button"
         >
-          <img src="/icon-close-x.webp" alt="Close" className="w-3.5 h-3.5 object-contain" />
+          <img src="/assets/icons/icon-close-x.webp" alt="Close" className="w-3.5 h-3.5 object-contain" />
         </button>
 
         {/* Title with Mascot */}
         <div className="flex items-center gap-3 mb-2">
-          <img src="/mascot-pizza.webp" alt="" className="w-8 h-8 object-contain" />
+          <img src="/assets/illustrations/mascot-pizza.webp" alt="" className="w-8 h-8 object-contain" />
           <h2 className="font-heading font-extrabold text-2xl text-[#111111]">
             Receive files
           </h2>
@@ -151,7 +151,7 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
                 : 'bg-[#E4E4E7] text-[#71717A] cursor-not-allowed opacity-75'
             }`}
           >
-            <img src="/icon-download-yellow-btn.webp" alt="" className="w-5 h-5 object-contain" />
+            <img src="/assets/icons/icon-download-yellow-btn.webp" alt="" className="w-5 h-5 object-contain" />
             <span>{isLoading ? 'Joining room...' : 'Join Room & Download Files'}</span>
           </button>
         </form>

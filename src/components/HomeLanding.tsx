@@ -129,7 +129,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
       <div className="block md:hidden w-full min-h-screen bg-[#FDF7ED] text-[#0A1020] relative overflow-x-hidden selection:bg-[#FED228] selection:text-[#111111]">
         {/* Yellow blob pinned to top-right corner, ~190px wide, bleeding off top and right edges, behind top bar */}
         <img
-          src="/blob-yellow-top-right.webp"
+          src="/assets/blobs/blob-yellow-top-right.webp"
           alt=""
           width="190"
           height="190"
@@ -138,7 +138,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
 
         {/* Pink blob pinned to bottom-left corner of the page end, ~110px wide, bleeding off left and bottom edges, behind footer */}
         <img
-          src="/blob-pink-bottom-left.webp"
+          src="/assets/blobs/blob-pink-bottom-left.webp"
           alt=""
           width="110"
           height="110"
@@ -166,7 +166,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
             aria-label="SliceDrop logo"
           >
             <img
-              src="/new-brand-logo.png"
+              src="/assets/illustrations/new-brand-logo.png"
               alt="SliceDrop"
               className="h-[38px] w-auto object-contain select-none"
             />
@@ -198,7 +198,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
               <span>Send a slice.</span>
               {/* Pink sparkle dashes (sparkle-pink-dashes.webp ~30px wide), 10px gap, aligned to top of line */}
               <img
-                src="/sparkle-pink-dashes.webp"
+                src="/assets/sparkles/sparkle-pink-dashes.webp"
                 alt=""
                 width="30"
                 height="38"
@@ -335,7 +335,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
               {/* Step 1: 80px circle icon at left, 20px gap, title 20px/800, 6px below caption 16px/500 #55657A */}
               <div className="flex items-center gap-[20px]">
                 <img
-                  src="/step-1-slice.webp"
+                  src="/assets/illustrations/step-1-slice.webp"
                   alt="1. Drop files"
                   width="80"
                   height="80"
@@ -361,7 +361,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
               {/* Step 2 */}
               <div className="flex items-center gap-[20px]">
                 <img
-                  src="/step-2-box.webp"
+                  src="/assets/illustrations/step-2-box.webp"
                   alt="2. Share your code"
                   width="80"
                   height="80"
@@ -387,7 +387,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
               {/* Step 3 */}
               <div className="flex items-center gap-[20px]">
                 <img
-                  src="/step-3-globe.webp"
+                  src="/assets/illustrations/step-3-globe.webp"
                   alt="3. Pick up anywhere"
                   width="80"
                   height="80"
@@ -420,7 +420,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
                 aria-label="SliceDrop logo"
               >
                 <img
-                  src="/new-brand-logo.png"
+                  src="/assets/illustrations/new-brand-logo.png"
                   alt="SliceDrop"
                   className="h-[28px] w-auto object-contain select-none"
                 />
@@ -442,12 +442,12 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
       <div className="hidden md:flex w-full relative min-h-screen bg-[#FDF7ED] text-[#111111] overflow-x-hidden selection:bg-[#FED228] selection:text-[#111111] flex-col justify-between">
         {/* Corner Bleed Blobs (matches desktop mockup) */}
         <img
-          src="/blob-yellow-top-right.webp"
+          src="/assets/blobs/blob-yellow-top-right.webp"
           alt=""
           className="absolute top-0 right-0 w-[200px] sm:w-[260px] md:w-[320px] lg:w-[360px] pointer-events-none select-none z-0 object-contain"
         />
         <img
-          src="/blob-pink-bottom-left.webp"
+          src="/assets/blobs/blob-pink-bottom-left.webp"
           alt=""
           className="absolute bottom-0 left-0 w-[180px] sm:w-[240px] md:w-[290px] lg:w-[330px] pointer-events-none select-none z-0 object-contain"
         />
@@ -495,7 +495,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
                 <span className="inline-flex items-center whitespace-nowrap">
                   <span>Send a slice.</span>
                   <img
-                    src="/sparkle-pink-dashes.webp"
+                    src="/assets/sparkles/sparkle-pink-dashes.webp"
                     alt=""
                     className="w-6 sm:w-8 md:w-10 lg:w-11 ml-2 sm:ml-2.5 inline-block object-contain"
                   />
@@ -548,21 +548,21 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
               <div className="relative w-[260px] sm:w-[290px] md:w-[320px] lg:w-[350px] h-[260px] sm:h-[290px] md:h-[320px] lg:h-[350px] flex items-center justify-center">
                 {/* hero-blob-pink.webp */}
                 <img
-                  src="/hero-blob-pink.webp"
+                  src="/assets/blobs/hero-blob-pink.webp"
                   alt=""
                   className="w-[250px] sm:w-[280px] md:w-[305px] lg:w-[330px] h-auto object-contain absolute z-10"
                 />
 
                 {/* mascot-pizza.webp on top */}
                 <img
-                  src="/mascot-pizza.webp"
+                  src="/assets/illustrations/mascot-pizza.webp"
                   alt="SliceDrop Smiling Mascot"
                   className="w-[230px] sm:w-[260px] md:w-[285px] lg:w-[310px] h-auto object-contain absolute z-20 top-[22px] sm:top-[28px] md:top-[32px]"
                 />
 
                 {/* sparkle-black-rays.webp at top-right of mascot */}
                 <img
-                  src="/sparkle-black-rays.webp"
+                  src="/assets/sparkles/sparkle-black-rays.webp"
                   alt=""
                   className="w-8 sm:w-10 md:w-11 h-auto object-contain absolute z-30 -top-1 right-3 sm:top-1 sm:right-4 pointer-events-none"
                 />
@@ -621,7 +621,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
               {/* Step 1 */}
               <div className="flex flex-col items-center text-center">
                 <img
-                  src="/step-1-slice.webp"
+                  src="/assets/illustrations/step-1-slice.webp"
                   alt="1. Drop files"
                   className="w-[100px] sm:w-[115px] md:w-[125px] h-[100px] sm:h-[115px] md:h-[125px] object-contain select-none"
                 />
@@ -641,7 +641,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
               {/* Step 2 */}
               <div className="flex flex-col items-center text-center">
                 <img
-                  src="/step-2-box.webp"
+                  src="/assets/illustrations/step-2-box.webp"
                   alt="2. Share your code"
                   className="w-[100px] sm:w-[115px] md:w-[125px] h-[100px] sm:h-[115px] md:h-[125px] object-contain select-none"
                 />
@@ -661,7 +661,7 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
               {/* Step 3 */}
               <div className="flex flex-col items-center text-center">
                 <img
-                  src="/step-3-globe.webp"
+                  src="/assets/illustrations/step-3-globe.webp"
                   alt="3. Pick up anywhere"
                   className="w-[100px] sm:w-[115px] md:w-[125px] h-[100px] sm:h-[115px] md:h-[125px] object-contain select-none"
                 />

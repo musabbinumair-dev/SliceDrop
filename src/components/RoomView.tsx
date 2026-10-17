@@ -48,16 +48,16 @@ interface RoomViewProps {
 const getFileTileConfig = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   if (ext === 'pdf') {
-    return { bg: '#F73F75', type: 'pdf', icon: '/icon-pdf-room.webp', label: 'PDF' };
+    return { bg: '#F73F75', type: 'pdf', icon: '/assets/icons/icon-pdf-room.webp', label: 'PDF' };
   }
   if (['jpg', 'jpeg', 'png', 'webp', 'heic', 'gif', 'svg', 'bmp'].includes(ext)) {
-    return { bg: '#7152EB', type: 'image', icon: '/icon-image-purple.webp', label: 'IMG' };
+    return { bg: '#7152EB', type: 'image', icon: '/assets/icons/icon-image-purple.webp', label: 'IMG' };
   }
   if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
-    return { bg: '#51A953', type: 'zip', icon: '/icon-zip-green.webp', label: 'ZIP' };
+    return { bg: '#51A953', type: 'zip', icon: '/assets/icons/icon-zip-green.webp', label: 'ZIP' };
   }
   if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) {
-    return { bg: '#FC8828', type: 'video', icon: '/icon-video-orange.webp', label: 'VID' };
+    return { bg: '#FC8828', type: 'video', icon: '/assets/icons/icon-video-orange.webp', label: 'VID' };
   }
   return { bg: '#6B7280', type: 'other', label: ext.toUpperCase().slice(0, 4) || 'FILE' };
 };
@@ -329,7 +329,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
         />
 
         <div className="relative z-10 bg-white border-[3px] border-[#111111] rounded-[24px] shadow-[6px_6px_0_#111111] max-w-md w-full p-8 text-center">
-          <img src="/mascot-pizza.webp" alt="" className="w-16 h-16 mx-auto mb-4 object-contain" />
+          <img src="/assets/illustrations/mascot-pizza.webp" alt="" className="w-16 h-16 mx-auto mb-4 object-contain" />
           <h2 className="font-heading font-extrabold text-2xl text-[#111111] mb-2">
             {room.status === 'ended' ? 'Transfer Room Closed' : 'Room Expired'}
           </h2>
@@ -505,7 +505,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 aria-label="Back to home"
               >
                 <img
-                  src="/icon-arrow-left.webp"
+                  src="/assets/icons/icon-arrow-left.webp"
                   alt=""
                   style={{ width: 'calc(18 * var(--lu))', height: 'calc(18 * var(--lu))' }}
                   className="object-contain shrink-0"
@@ -542,7 +542,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                     Add your files
                   </span>
                   <img
-                    src="/sparkle-pink-title.webp"
+                    src="/assets/sparkles/sparkle-pink-title.webp"
                     alt=""
                     style={{
                       position: 'absolute',
@@ -621,7 +621,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
               >
                 {/* Pizza illustration with sparkles ~148px wide */}
                 <img
-                  src="/dropzone-pizza-sparkles.webp"
+                  src="/assets/illustrations/dropzone-pizza-sparkles.webp"
                   alt="Drop files"
                   style={{ width: 'calc(148 * var(--lu))', height: 'auto' }}
                   className="object-contain pointer-events-none select-none"
@@ -818,7 +818,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                             aria-label={`Remove ${s.name}`}
                           >
                             <img
-                              src="/icon-close-x.webp"
+                              src="/assets/icons/icon-close-x.webp"
                               alt="Remove"
                               style={{
                                 width: 'calc(18 * var(--lu))',
@@ -848,7 +848,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
               >
                 {/* Left sparkle: ~24px wide at 34px from card's left edge near button's top (34 - 32 = 2px) */}
                 <img
-                  src="/sparkle-lines-btn-left.webp"
+                  src="/assets/sparkles/sparkle-lines-btn-left.webp"
                   alt=""
                   style={{
                     position: 'absolute',
@@ -901,7 +901,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   className="flex items-center justify-center font-heading font-extrabold select-none"
                 >
                   <img
-                    src="/mascot-pizza.webp"
+                    src="/assets/illustrations/mascot-pizza.webp"
                     alt=""
                     style={{
                       width: 'calc(36 * var(--lu))',
@@ -919,7 +919,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
 
                 {/* Right sparkle: ~24px wide at 20px from card's right edge near button's bottom (20 - 32 = -12px) */}
                 <img
-                  src="/sparkle-lines-btn-right.webp"
+                  src="/assets/sparkles/sparkle-lines-btn-right.webp"
                   alt=""
                   style={{
                     position: 'absolute',
@@ -992,7 +992,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                     }}
                   >
                     <img
-                      src="/mascot-pizza.webp"
+                      src="/assets/illustrations/mascot-pizza.webp"
                       alt=""
                       style={{
                         width: 'calc(50 * var(--ru))',
@@ -1078,7 +1078,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
 
                   {/* Pink sparkle ~28px wide, OUTSIDE the box, 25px to right of its right edge, aligned with box's top */}
                   <img
-                    src="/sparkle-pink-qr-room.webp"
+                    src="/assets/sparkles/sparkle-pink-qr-room.webp"
                     alt=""
                     style={{
                       position: 'absolute',
@@ -1155,7 +1155,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   }}
                 >
                   <img
-                    src="/icon-link.webp"
+                    src="/assets/icons/icon-link.webp"
                     alt=""
                     style={{
                       width: 'calc(28 * var(--ru))',
@@ -1220,7 +1220,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   title="Copy link"
                 >
                   <img
-                    src={copiedLink ? '/icon-check-green.webp' : '/icon-copy-dark.webp'}
+                    src={copiedLink ? '/assets/icons/icon-check-green.webp' : '/assets/icons/icon-copy-dark.webp'}
                     alt=""
                     style={{
                       width: 'calc(22 * var(--ru))',
@@ -1260,7 +1260,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 }}
               >
                 <img
-                  src="/mascot-pizza.webp"
+                  src="/assets/illustrations/mascot-pizza.webp"
                   alt=""
                   style={{
                     width: 'calc(36 * var(--ru))',
@@ -1346,7 +1346,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   title="Add more files"
                 >
                   <img
-                    src="/icon-plus.webp"
+                    src="/assets/icons/icon-plus.webp"
                     alt=""
                     style={{
                       width: 'calc(16 * var(--ru))',
@@ -1575,7 +1575,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                             }}
                           >
                             <img
-                              src="/icon-check-green.webp"
+                              src="/assets/icons/icon-check-green.webp"
                               alt=""
                               style={{
                                 width: 'calc(17 * var(--ru))',
@@ -1626,7 +1626,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                             className="hover:translate-x-[0.5px] hover:translate-y-[0.5px] active:shadow-none transition-all select-none"
                           >
                             <img
-                              src="/icon-download-yellow-btn.webp"
+                              src="/assets/icons/icon-download-yellow-btn.webp"
                               alt=""
                               style={{
                                 width: 'calc(18 * var(--ru))',
@@ -1665,7 +1665,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                             className="select-none"
                           >
                             <img
-                              src="/icon-download-grey.webp"
+                              src="/assets/icons/icon-download-grey.webp"
                               alt=""
                               style={{
                                 width: 'calc(18 * var(--ru))',
@@ -1699,7 +1699,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                           }}
                         >
                           <img
-                            src="/icon-dots-vertical.webp"
+                            src="/assets/icons/icon-dots-vertical.webp"
                             alt="More"
                             style={{
                               width: 'calc(18 * var(--ru))',
@@ -1820,7 +1820,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                           }}
                         >
                           <img
-                            src="/icon-check-green.webp"
+                            src="/assets/icons/icon-check-green.webp"
                             alt=""
                             style={{
                               width: 'calc(17 * var(--ru))',
@@ -1870,7 +1870,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                           title="Download file"
                         >
                           <img
-                            src="/icon-download-yellow-btn.webp"
+                            src="/assets/icons/icon-download-yellow-btn.webp"
                             alt=""
                             style={{
                               width: 'calc(18 * var(--ru))',
@@ -1913,7 +1913,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                             aria-label="More"
                           >
                             <img
-                              src="/icon-dots-vertical.webp"
+                              src="/assets/icons/icon-dots-vertical.webp"
                               alt="More"
                               style={{
                                 width: 'calc(18 * var(--ru))',
@@ -2043,7 +2043,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   }}
                 >
                   <img
-                    src="/mascot-pizza.webp"
+                    src="/assets/illustrations/mascot-pizza.webp"
                     alt=""
                     style={{
                       width: 'calc(32 * var(--ru))',
@@ -2099,7 +2099,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   className="hover:bg-[#FFF0F4] whitespace-nowrap shrink-0 transition-all active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-none select-none"
                 >
                   <img
-                    src="/icon-trash.webp"
+                    src="/assets/icons/icon-trash.webp"
                     alt=""
                     style={{
                       width: 'calc(18 * var(--ru))',
@@ -2128,7 +2128,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
       {showConfirmEndModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
           <div className="bg-[#FDF7ED] border-[3px] border-[#111111] rounded-[24px] shadow-[6px_6px_0_#111111] max-w-md w-full p-6 sm:p-7 relative font-sans text-center">
-            <img src="/mascot-pizza.webp" alt="" className="w-16 h-16 mx-auto mb-4 object-contain" />
+            <img src="/assets/illustrations/mascot-pizza.webp" alt="" className="w-16 h-16 mx-auto mb-4 object-contain" />
             <h3 className="font-heading font-extrabold text-2xl text-[#111111] mb-2">
               End Transfer Room?
             </h3>

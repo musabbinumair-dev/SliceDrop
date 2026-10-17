@@ -336,7 +336,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
             aria-label="Room actions"
           >
             <img
-              src="/icon-dots-horizontal.webp"
+              src="/assets/icons/icon-dots-horizontal.webp"
               alt="Menu"
               width="24"
               height="6"
@@ -395,7 +395,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
         <div
           className="w-full max-w-[350px] mx-auto aspect-[769/462] relative bg-no-repeat select-none"
           style={{
-            backgroundImage: "url('/ticket-plain.webp')",
+            backgroundImage: "url('/assets/illustrations/ticket-plain.webp')",
             backgroundSize: '100% 100%',
           }}
         >
@@ -462,7 +462,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
             >
               {/* Link Icon (icon-link-dark.webp at 22px) */}
               <img
-                src="/icon-link-dark.webp"
+                src="/assets/icons/icon-link-dark.webp"
                 alt=""
                 width="22"
                 height="22"
@@ -510,7 +510,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
       <div className="w-full mt-[16px] pl-[28px] pr-[20px] flex items-start gap-[16px] shrink-0">
         {/* Lightbulb Icon using icon-lightbulb.webp at 30px */}
         <img
-          src="/icon-lightbulb.webp"
+          src="/assets/icons/icon-lightbulb.webp"
           alt=""
           width="30"
           height="30"
@@ -700,7 +700,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
           >
             {/* Link Icon (icon-link-on-yellow.webp at 22px) */}
             <img
-              src="/icon-link-on-yellow.webp"
+              src="/assets/icons/icon-link-on-yellow.webp"
               alt=""
               width="22"
               height="22"
@@ -820,7 +820,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-5 animate-in fade-in">
           <div className="w-full max-w-[340px] bg-[#FBF6EC] border-[3px] border-[#111111] rounded-[22px] shadow-[5px_5px_0_#111111] p-5 font-['DM_Sans',sans-serif] text-center">
             <img
-              src="/mascot-pizza.webp"
+              src="/assets/illustrations/mascot-pizza.webp"
               alt=""
               className="w-14 h-14 mx-auto mb-3 object-contain"
             />
