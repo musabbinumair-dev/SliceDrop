@@ -6,6 +6,7 @@ export type StatusChipVariant =
   | 'waiting'
   | 'uploaded'
   | 'declined'
+  | 'failed'
   | 'uploading';
 
 export interface StatusChipProps {
@@ -29,7 +30,7 @@ export const StatusChip: React.FC<StatusChipProps> = ({
 }) => {
   const isMobile = size === 'mobile';
 
-  // Exact color definitions matching spec & mockup image
+  // Exact color definitions matching spec
   const config = {
     add: {
       bg: '#F2F2F2',
@@ -61,23 +62,22 @@ export const StatusChip: React.FC<StatusChipProps> = ({
       textColor: '#D45E52',
       defaultLabel: 'Declined',
     },
+    failed: {
+      bg: '#FEF0EF',
+      circleBg: '#DF6052',
+      textColor: '#D45E52',
+      defaultLabel: 'Failed',
+    },
     uploading: {
       bg: '#007AFF',
       circleBg: 'transparent',
       textColor: '#FFFFFF',
-      defaultLabel: `Uploading ${progress ?? 0}%`,
+      defaultLabel: 'Uploading',
     },
   }[variant];
 
-  // Resolve display label
-  let displayLabel = label;
-  if (!displayLabel) {
-    if (variant === 'uploading') {
-      displayLabel = `Uploading ${progress ?? 0}%`;
-    } else {
-      displayLabel = config.defaultLabel;
-    }
-  }
+  // Resolve display label (no percentage in label text)
+  const displayLabel = label || config.defaultLabel;
 
   // Accessible aria-label
   const ariaLabel =
@@ -85,7 +85,7 @@ export const StatusChip: React.FC<StatusChipProps> = ({
       ? `Uploading ${progress ?? 0} percent`
       : displayLabel;
 
-  // Render SVG icons with 2.2px rounded stroke & generous padding (~50% glyph size)
+  // Render SVG icons for standard variants
   const renderIcon = () => {
     switch (variant) {
       case 'add':
@@ -161,6 +161,7 @@ export const StatusChip: React.FC<StatusChipProps> = ({
         );
 
       case 'declined':
+      case 'failed':
         return (
           <svg
             viewBox="0 0 18 18"
@@ -169,7 +170,7 @@ export const StatusChip: React.FC<StatusChipProps> = ({
             aria-hidden="true"
           >
             <path
-              d="M6.2 6.2L11.8 11.8M11.8 6.2L6.2 11.8"
+              d="M6 6L12 12M12 6L6 12"
               stroke="#FFFFFF"
               strokeWidth="2.2"
               strokeLinecap="round"
@@ -178,25 +179,8 @@ export const StatusChip: React.FC<StatusChipProps> = ({
           </svg>
         );
 
-      case 'uploading':
-        return (
-          <svg
-            viewBox="0 0 18 18"
-            className="w-full h-full animate-[spin_0.9s_linear_infinite] motion-reduce:animate-none"
-            fill="none"
-            aria-hidden="true"
-          >
-            <circle
-              cx="9"
-              cy="9"
-              r="5.5"
-              stroke="#FFFFFF"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeDasharray="24 10"
-            />
-          </svg>
-        );
+      default:
+        return null;
     }
   };
 
@@ -208,12 +192,12 @@ export const StatusChip: React.FC<StatusChipProps> = ({
       aria-label={ariaLabel}
       title={title || ariaLabel}
       onClick={onClick}
-      className={`inline-flex items-center whitespace-nowrap rounded-full transition-all duration-150 select-none ${
+      className={`inline-flex items-center justify-center whitespace-nowrap rounded-full transition-all duration-150 select-none shrink-0 ${
         isClickable ? 'cursor-pointer hover:opacity-90 active:scale-95' : ''
       } ${
         isMobile
-          ? 'h-[30px] pl-[7px] pr-[10px] gap-[6px] text-[13px]'
-          : 'h-[34px] pl-[8px] pr-[12px] gap-[7px] text-[14px]'
+          ? 'w-[124px] h-[30px] px-2 gap-[6px] text-[13px] font-semibold'
+          : 'w-[136px] h-[34px] px-2 gap-[6px] text-[14px] font-semibold'
       } ${className}`}
       style={{
         backgroundColor: config.bg,
@@ -221,20 +205,26 @@ export const StatusChip: React.FC<StatusChipProps> = ({
         lineHeight: 1,
       }}
     >
-      {/* Icon circle */}
-      <div
-        className={`rounded-full flex items-center justify-center shrink-0 ${
-          isMobile ? 'w-[16px] h-[16px]' : 'w-[18px] h-[18px]'
-        }`}
-        style={{
-          backgroundColor: config.circleBg,
-        }}
-      >
-        {renderIcon()}
-      </div>
+      {/* In place of the loader icon: percentage for uploading, icon circle for other chips */}
+      {variant === 'uploading' ? (
+        <span className="font-semibold tabular-nums leading-none tracking-normal whitespace-nowrap shrink-0">
+          {progress ?? 0}%
+        </span>
+      ) : (
+        <div
+          className={`rounded-full flex items-center justify-center shrink-0 ${
+            isMobile ? 'w-[16px] h-[16px]' : 'w-[18px] h-[18px]'
+          }`}
+          style={{
+            backgroundColor: config.circleBg,
+          }}
+        >
+          {renderIcon()}
+        </div>
+      )}
 
-      {/* Label text */}
-      <span className="font-semibold tabular-nums leading-none tracking-normal">
+      {/* Label text: centered, no wrap or truncate */}
+      <span className="font-semibold leading-none tracking-normal whitespace-nowrap">
         {displayLabel}
       </span>
     </div>

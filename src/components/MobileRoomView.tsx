@@ -13,6 +13,7 @@ import { RoomData, UploadQueueItem } from './RoomView.tsx';
 import { FileItem } from './FileList.tsx';
 import { Logo } from './Logo.tsx';
 import { StatusChip } from './StatusChip.tsx';
+import { FileTypeIcon } from './FileTypeIcon.tsx';
 
 interface MobileRoomViewProps {
   room: RoomData | null;
@@ -31,37 +32,7 @@ interface MobileRoomViewProps {
   onOpenReceive?: () => void;
 }
 
-// Default mock files matching the attached specification mockup
-const MOCK_FILES: FileItem[] = [
-  {
-    id: 'mock-1',
-    originalFilename: 'Project Proposal.pdf',
-    sizeBytes: 4.2 * 1024 * 1024,
-    mimeType: 'application/pdf',
-    createdAt: Date.now() - 60000,
-  },
-  {
-    id: 'mock-2',
-    originalFilename: 'photoshoot.jpg',
-    sizeBytes: 6.8 * 1024 * 1024,
-    mimeType: 'image/jpeg',
-    createdAt: Date.now() - 30000,
-  },
-  {
-    id: 'mock-3',
-    originalFilename: 'resources.zip',
-    sizeBytes: 1.4 * 1024 * 1024,
-    mimeType: 'application/zip',
-    createdAt: Date.now() - 15000,
-  },
-  {
-    id: 'mock-4',
-    originalFilename: 'demo-video.mp4',
-    sizeBytes: 28.7 * 1024 * 1024,
-    mimeType: 'video/mp4',
-    createdAt: Date.now() - 5000,
-  },
-];
+
 
 export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
   room,
@@ -214,12 +185,6 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
 
   // Delete file
   const handleDeleteFile = async (fileId: string) => {
-    if (fileId.startsWith('mock-')) {
-      setActionFile(null);
-      setToastMessage('File removed');
-      setTimeout(() => setToastMessage(null), 2000);
-      return;
-    }
     if (!room || !creatorToken) return;
     try {
       const res = await fetch(`/api/rooms/${room.id}/files/${fileId}`, {
@@ -295,68 +260,9 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
     touchDeltaY.current = 0;
   };
 
-  // File type tile rendering: exact 42x42px image asset based on extension
-  const renderTile = (filename: string) => {
-    const ext = filename.split('.').pop()?.toLowerCase() || '';
-
-    if (ext === 'pdf') {
-      return (
-        <img
-          src="/tile-pdf.webp"
-          alt="PDF"
-          width="42"
-          height="42"
-          className="w-[42px] h-[42px] object-contain shrink-0 select-none"
-        />
-      );
-    }
-    if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext)) {
-      return (
-        <img
-          src="/tile-image.webp"
-          alt="Image"
-          width="42"
-          height="42"
-          className="w-[42px] h-[42px] object-contain shrink-0 select-none"
-        />
-      );
-    }
-    if (['zip', 'rar', 'tar', 'gz', '7z'].includes(ext)) {
-      return (
-        <img
-          src="/tile-zip.webp"
-          alt="Archive"
-          width="42"
-          height="42"
-          className="w-[42px] h-[42px] object-contain shrink-0 select-none"
-        />
-      );
-    }
-    if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) {
-      return (
-        <img
-          src="/tile-video.webp"
-          alt="Video"
-          width="42"
-          height="42"
-          className="w-[42px] h-[42px] object-contain shrink-0 select-none"
-        />
-      );
-    }
-    return (
-      <img
-        src="/tile-pdf.webp"
-        alt="File"
-        width="42"
-        height="42"
-        className="w-[42px] h-[42px] object-contain shrink-0 select-none"
-      />
-    );
-  };
 
   // Determine files to display: real files first, mock fallback if empty
-  const hasRealFiles = (room && room.files && room.files.length > 0) || uploadQueue.length > 0;
-  const displayFiles = hasRealFiles ? (room?.files || []) : MOCK_FILES;
+  const displayFiles = room?.files || [];
 
   const codeDigits = activeCode.padEnd(6, '0').slice(0, 6).split('');
 
@@ -446,15 +352,15 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
             backgroundSize: '100% 100%',
           }}
         >
-          {/* Overlay Item 1: Code | QR toggle (left 8.5%, width 83%, top 8.5%, height 40px) with smooth sliding pill */}
-          <div className="absolute top-[8.5%] left-[8.5%] w-[83%] h-[40px] bg-white border-[3px] border-[#111111] rounded-full shadow-[2px_3px_0_#111111] overflow-hidden flex z-20 select-none">
-            {/* Smooth sliding yellow active segment */}
+          {/* Overlay Item 1: Code | QR toggle matching the mockup exactly */}
+          <div className="absolute top-[8%] left-[8.5%] w-[83%] h-[42px] bg-white border-[3px] border-[#111111] rounded-full shadow-[2px_3px_0_#111111] flex relative z-20 select-none">
+            {/* Sliding yellow pill with rounded border matching mockup */}
             <div
-              className="absolute top-0 bottom-0 left-0 w-1/2 bg-[#FED232] border-[#111111] transition-transform duration-300 ease-in-out pointer-events-none"
+              className="absolute -top-[3px] -bottom-[3px] rounded-full bg-[#FED228] border-[3px] border-[#111111] pointer-events-none transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
               style={{
+                left: '-3px',
+                width: 'calc(50% + 3px)',
                 transform: ticketTab === 'code' ? 'translateX(0%)' : 'translateX(100%)',
-                borderRightWidth: ticketTab === 'code' ? '3px' : '0px',
-                borderLeftWidth: ticketTab === 'qr' ? '3px' : '0px',
               }}
             />
 
@@ -462,7 +368,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
             <button
               type="button"
               onClick={() => setTicketTab('code')}
-              className="w-1/2 h-full font-['Poppins',sans-serif] text-[17px] font-extrabold text-[#111111] flex items-center justify-center relative z-10 cursor-pointer select-none"
+              className="w-1/2 h-full font-['Poppins',sans-serif] text-[17px] font-extrabold text-[#111111] flex items-center justify-center relative z-10 cursor-pointer select-none active:scale-[0.98] transition-transform"
             >
               Code
             </button>
@@ -471,7 +377,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
             <button
               type="button"
               onClick={() => setTicketTab('qr')}
-              className="w-1/2 h-full font-['Poppins',sans-serif] text-[17px] font-extrabold text-[#111111] flex items-center justify-center relative z-10 cursor-pointer select-none"
+              className="w-1/2 h-full font-['Poppins',sans-serif] text-[17px] font-extrabold text-[#111111] flex items-center justify-center relative z-10 cursor-pointer select-none active:scale-[0.98] transition-transform"
             >
               QR
             </button>
@@ -485,11 +391,11 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
                 : 'opacity-0 pointer-events-none'
             }`}
           >
-            {/* Overlay Item 2: Six Digit Tiles (left 7%, width 86%, top 29.5%, clickable to copy!) */}
+            {/* Overlay Item 2: Six Digit Tiles (left 7%, width 86%, top 33%, clickable to copy!) */}
             <div
               onClick={handleCopyCode}
               title="Click to copy code"
-              className="absolute top-[29.5%] left-[7%] w-[86%] grid grid-cols-6 gap-[4px] cursor-pointer active:scale-[0.98] transition-transform select-none"
+              className="absolute top-[33%] left-[7%] w-[86%] grid grid-cols-6 gap-[4px] cursor-pointer active:scale-[0.98] transition-transform select-none"
             >
               {codeDigits.map((digit, idx) => (
                 <div
@@ -501,11 +407,11 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
               ))}
             </div>
 
-            {/* Overlay Item 3: Link Pill (left 7%, width 86%, top 66%, height 38px) */}
+            {/* Overlay Item 3: Link Pill (left 7%, width 86%, top 68%, height 38px) */}
             <div
               onClick={handleCopyLink}
               title="Click to copy link"
-              className="absolute top-[66%] left-[7%] w-[86%] h-[38px] bg-white border-[3px] border-[#111111] rounded-full px-3.5 flex items-center cursor-pointer active:scale-[0.99] hover:bg-[#FFFDF7] transition-all"
+              className="absolute top-[68%] left-[7%] w-[86%] h-[38px] bg-white border-[3px] border-[#111111] rounded-full px-3.5 flex items-center cursor-pointer active:scale-[0.99] hover:bg-[#FFFDF7] transition-all"
             >
               {/* Link Icon (icon-link-dark.webp at 22px) */}
               <img
@@ -566,7 +472,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
 
         {/* Gray Info Text (14px/500, line-height 18px, color #6B7B83, max-width ~215px) */}
         <p className="font-['DM_Sans',sans-serif] text-[14px] font-medium leading-[18px] text-[#6B7B83] max-w-[215px] select-none">
-          Share this code or link with anyone. They can upload and download files from any device, even on different networks.
+          Share this code or link with anyone to upload and download files instantly.
         </p>
       </div>
 
@@ -628,6 +534,15 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
 
         {/* File Rows List (padding 0 14px, 3px gap) */}
         <div className="flex-1 overflow-y-auto px-[14px] space-y-[3px] pb-2">
+          {displayFiles.length === 0 && uploadQueue.length === 0 && (
+            <div className="py-12 px-4 text-center">
+              <p className="font-['DM_Sans',sans-serif] font-bold text-[16px] text-[#111111]">No files in this room yet.</p>
+              <p className="font-['DM_Sans',sans-serif] text-[13.5px] text-[#7B7B7B] mt-1">
+                Tap "+ Add more files" above to upload files.
+              </p>
+            </div>
+          )}
+
           {/* Real ongoing uploads from queue */}
           {uploadQueue
             .filter(q => q.status === 'uploading')
@@ -636,9 +551,9 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
                 key={`uq-${i}`}
                 className="w-full h-[62px] min-h-[62px] max-h-[62px] bg-[#FBF6EC] border-[1.5px] border-[#E6E0D4] rounded-[16px] pl-[14px] pr-[12px] flex items-center justify-between relative"
               >
-                {/* 42x42px Tile + Info */}
-                <div className="flex items-center min-w-0 flex-1 pr-2">
-                  {renderTile(qItem.name)}
+                {/* 42px FileTypeIcon + Info (truncates with at least 12px gap to status chip) */}
+                <div className="flex items-center min-w-0 flex-1 mr-[12px]">
+                  <FileTypeIcon filename={qItem.name} size="mobile" />
                   <div className="ml-[17px] min-w-0 flex-1">
                     <p className="font-['DM_Sans',sans-serif] font-bold text-[15px] text-[#111111] leading-tight truncate">
                       {qItem.name}
@@ -649,26 +564,20 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
                   </div>
                 </div>
 
-                {/* Uploading StatusChip with progress bar directly under */}
-                <div className="flex flex-col items-start shrink-0 mr-2 gap-1">
+                {/* Status Column: fixed width 124px aligned across all rows */}
+                <div className="w-[124px] shrink-0 flex items-center justify-center">
                   <StatusChip
                     variant="uploading"
                     progress={qItem.progress}
                     size="mobile"
                   />
-                  <div className="w-full h-[5px] bg-[#E6E6E6] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#007AFF] rounded-full transition-all duration-200"
-                      style={{ width: `${qItem.progress}%` }}
-                    />
-                  </div>
                 </div>
 
                 {/* Three-dot row menu using icon-dots-vertical.webp (about 4px wide x 16px tall) */}
                 <button
                   type="button"
                   disabled
-                  className="w-[44px] h-[44px] flex items-center justify-center cursor-default shrink-0 opacity-40"
+                  className="w-[44px] h-[44px] flex items-center justify-center cursor-default shrink-0 opacity-40 ml-1"
                 >
                   <img
                     src="/icon-dots-vertical.webp"
@@ -681,20 +590,16 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
               </div>
             ))}
 
-          {/* Render files (mock or real) */}
-          {displayFiles.map((file, idx) => {
-            // Mock specific status indicators matching mockup
-            const isSecondItemUploading = !hasRealFiles && idx === 1;
-            const isWaitingItem = !hasRealFiles && (idx === 2 || idx === 3);
-
+          {/* Render real room files */}
+          {displayFiles.map((file) => {
             return (
               <div
                 key={file.id}
                 className="w-full h-[62px] min-h-[62px] max-h-[62px] bg-[#FBF6EC] border-[1.5px] border-[#E6E0D4] rounded-[16px] pl-[14px] pr-[12px] flex items-center justify-between relative"
               >
-                {/* 42x42px Tile + Name & Size */}
-                <div className="flex items-center min-w-0 flex-1 pr-2">
-                  {renderTile(file.originalFilename)}
+                {/* 42px FileTypeIcon + Name & Size (truncates with at least 12px gap to status chip) */}
+                <div className="flex items-center min-w-0 flex-1 mr-[12px]">
+                  <FileTypeIcon filename={file.originalFilename} size="mobile" />
                   <div className="ml-[17px] min-w-0 flex-1">
                     <p className="font-['DM_Sans',sans-serif] font-bold text-[15px] text-[#111111] leading-tight truncate">
                       {file.originalFilename}
@@ -705,27 +610,16 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
                   </div>
                 </div>
 
-                {/* Status Column with StatusChip */}
-                <div className="flex items-center shrink-0 mr-2">
-                  {isSecondItemUploading ? (
-                    <div className="flex flex-col items-start gap-1">
-                      <StatusChip variant="uploading" progress={68} size="mobile" />
-                      <div className="w-full h-[5px] bg-[#E6E6E6] rounded-full overflow-hidden">
-                        <div className="h-full bg-[#007AFF] rounded-full w-[68%]" />
-                      </div>
-                    </div>
-                  ) : isWaitingItem ? (
-                    <StatusChip variant="waiting" label="Waiting" size="mobile" />
-                  ) : (
-                    <StatusChip variant="uploaded" label="Uploaded" size="mobile" />
-                  )}
+                {/* Status Column: fixed width 124px aligned across all rows */}
+                <div className="w-[124px] shrink-0 flex items-center justify-center">
+                  <StatusChip variant="uploaded" label="Uploaded" size="mobile" />
                 </div>
 
                 {/* Three-dot row menu: icon-dots-vertical.webp (about 4px wide x 16px tall, 44px hit area) */}
                 <button
                   type="button"
                   onClick={() => setActionFile(file)}
-                  className="w-[44px] h-[44px] flex items-center justify-center cursor-pointer shrink-0"
+                  className="w-[44px] h-[44px] flex items-center justify-center cursor-pointer shrink-0 ml-1"
                   aria-label={`Actions for ${file.originalFilename}`}
                 >
                   <img
@@ -772,7 +666,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
-                {renderTile(actionFile.originalFilename)}
+                <FileTypeIcon filename={actionFile.originalFilename} size="mobile" />
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-[15px] text-[#111111] truncate">
                     {actionFile.originalFilename}

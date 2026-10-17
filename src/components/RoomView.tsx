@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import { FileItem } from './FileList.tsx';
 import { StatusChip } from './StatusChip.tsx';
+import { FileTypeIcon } from './FileTypeIcon.tsx';
 
 export interface RoomData {
   id: string;
@@ -282,95 +283,6 @@ export const RoomView: React.FC<RoomViewProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const renderFileBadge = (filename: string) => {
-    const ext = filename.split('.').pop()?.toLowerCase() || '';
-    if (ext === 'pdf') {
-      return (
-        <img
-          src="/icon-pdf-room.webp"
-          alt="PDF"
-          className="w-9 h-9 sm:w-10 sm:h-10 object-contain flex-shrink-0"
-        />
-      );
-    }
-    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
-      return (
-        <img
-          src="/icon-image-purple.webp"
-          alt="IMG"
-          className="w-9 h-9 sm:w-10 sm:h-10 object-contain flex-shrink-0"
-        />
-      );
-    }
-    if (['zip', 'rar', 'tar', 'gz'].includes(ext)) {
-      return (
-        <img
-          src="/icon-zip-green.webp"
-          alt="ZIP"
-          className="w-9 h-9 sm:w-10 sm:h-10 object-contain flex-shrink-0"
-        />
-      );
-    }
-    if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) {
-      return (
-        <img
-          src="/icon-video-orange.webp"
-          alt="VID"
-          className="w-9 h-9 sm:w-10 sm:h-10 object-contain flex-shrink-0"
-        />
-      );
-    }
-    return (
-      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#111111] text-white font-heading font-extrabold text-[10px] flex items-center justify-center flex-shrink-0 shadow-xs">
-        {ext.toUpperCase().slice(0, 4) || 'FILE'}
-      </div>
-    );
-  };
-
-  const renderFileTile = (filename: string) => {
-    const ext = filename.split('.').pop()?.toLowerCase() || '';
-    if (ext === 'pdf') {
-      return (
-        <img
-          src="/icon-pdf-room.webp"
-          alt="PDF"
-          className="w-[46px] h-[46px] rounded-[10px] object-contain flex-shrink-0"
-        />
-      );
-    }
-    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
-      return (
-        <img
-          src="/icon-image-purple.webp"
-          alt="IMG"
-          className="w-[46px] h-[46px] rounded-[10px] object-contain flex-shrink-0"
-        />
-      );
-    }
-    if (['zip', 'rar', 'tar', 'gz'].includes(ext)) {
-      return (
-        <img
-          src="/icon-zip-green.webp"
-          alt="ZIP"
-          className="w-[46px] h-[46px] rounded-[10px] object-contain flex-shrink-0"
-        />
-      );
-    }
-    if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) {
-      return (
-        <img
-          src="/icon-video-orange.webp"
-          alt="VID"
-          className="w-[46px] h-[46px] rounded-[10px] object-contain flex-shrink-0"
-        />
-      );
-    }
-    return (
-      <div className="w-[46px] h-[46px] rounded-[10px] bg-[#111111] text-white font-bold text-[12px] flex items-center justify-center flex-shrink-0">
-        {ext.toUpperCase().slice(0, 4) || 'FILE'}
-      </div>
-    );
-  };
 
   const totalStagedBytes = stagedFiles.reduce((acc, f) => acc + f.size, 0);
   const roomFiles: FileItem[] = isRealRoom && room ? room.files : [];
@@ -584,10 +496,10 @@ export const RoomView: React.FC<RoomViewProps> = ({
                       {stagedFiles.map(s => (
                         <div
                           key={s.id}
-                          className="w-full min-h-[66px] bg-[#FBFAF5] border border-[#D9D5CC] rounded-[8px] flex items-center justify-between pl-[10px] pr-[12px] sm:pr-[16px] py-2 gap-2 relative"
+                          className="w-full min-h-[66px] bg-[#FBFAF5] border border-[#D9D5CC] rounded-[8px] flex items-center justify-between pl-[10px] pr-[12px] sm:pr-[16px] py-2 relative"
                         >
-                          <div className="flex items-center min-w-0 flex-1">
-                            {renderFileTile(s.name)}
+                          <div className="flex items-center min-w-0 flex-1 mr-[12px]">
+                            <FileTypeIcon filename={s.name} size="desktop" />
                             <div className="ml-[10px] sm:ml-[11px] min-w-0 flex-1 flex flex-col justify-center">
                               <p className="text-[15px] sm:text-[16px] font-bold text-[#111111] leading-tight truncate">
                                 {s.name}
@@ -598,11 +510,13 @@ export const RoomView: React.FC<RoomViewProps> = ({
                             </div>
                           </div>
                           <div className="flex items-center gap-3 shrink-0">
-                            {s.rejected ? (
-                              <StatusChip variant="declined" label="Declined" size="desktop" />
-                            ) : (
-                              <StatusChip variant="added" label="Added" size="desktop" />
-                            )}
+                            <div className="w-[136px] shrink-0 flex items-center justify-center">
+                              {s.rejected ? (
+                                <StatusChip variant="declined" label="Declined" size="desktop" />
+                              ) : (
+                                <StatusChip variant="added" label="Added" size="desktop" />
+                              )}
+                            </div>
                             <button
                               type="button"
                               onClick={e => handleRemoveStagedFile(s.id, e)}
@@ -860,8 +774,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   className="w-[32px] h-[32px] sm:w-[36px] sm:h-[36px] object-contain flex-shrink-0 self-start sm:self-center mt-0.5 sm:mt-0"
                 />
                 <p className="ml-[12px] sm:ml-[16px] text-[13px] sm:text-[15.5px] font-medium leading-[20px] sm:leading-[24px] text-[#1F2D3A]">
-                  Share this code or link with anyone. They can upload and download files<br className="hidden sm:inline" />
-                  from any device, even on different networks.
+                  Share this code or link with anyone to upload and download files instantly across devices.
                 </p>
               </div>
 
@@ -899,12 +812,13 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   {uploadQueue.map((item, idx) => (
                     <div
                       key={`uq-${idx}`}
-                      className="relative w-full max-w-[759px] min-h-[74px] bg-[#FCFBF6] border border-[#E9E8E3] rounded-[12px] p-3 sm:px-[18px] sm:py-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4"
+                      className="relative w-full max-w-[759px] h-[74px] min-h-[74px] max-h-[74px] bg-[#FCFBF6] border border-[#E9E8E3] rounded-[12px] px-3 sm:px-[18px] flex items-center justify-between"
                     >
-                      <div className="flex items-center min-w-0 flex-1">
-                        {renderFileTile(item.name)}
+                      {/* File Tile + Name & Size (truncates with at least 12px gap to status chip) */}
+                      <div className="flex items-center min-w-0 flex-1 mr-[12px]">
+                        <FileTypeIcon filename={item.name} size="desktop" />
                         <div className="ml-3 sm:ml-[22px] min-w-0 flex-1 flex flex-col justify-center">
-                          <p className="text-[15px] sm:text-[16px] font-bold text-[#111111] leading-tight truncate sm:max-w-[240px] md:max-w-[280px]">
+                          <p className="text-[15px] sm:text-[16px] font-bold text-[#111111] leading-tight truncate">
                             {item.name}
                           </p>
                           <p className="mt-[4px] text-[12px] sm:text-[13px] font-medium text-[#666666] leading-none">
@@ -913,8 +827,8 @@ export const RoomView: React.FC<RoomViewProps> = ({
                         </div>
                       </div>
 
-                      {/* Status Column */}
-                      <div className="w-full sm:w-[150px] lg:absolute lg:left-[387px] flex flex-col justify-center gap-1.5">
+                      {/* Status Column: fixed 136px width, aligned across all rows */}
+                      <div className="w-[136px] shrink-0 flex items-center justify-center">
                         {item.status === 'error' ? (
                           <StatusChip
                             variant="declined"
@@ -932,18 +846,10 @@ export const RoomView: React.FC<RoomViewProps> = ({
                             size="desktop"
                           />
                         )}
-                        <div className="w-full h-[6px] sm:h-[7px] bg-[#EBEAE6] rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              item.status === 'error' ? 'bg-[#DF6052]' : 'bg-[#007AFF]'
-                            }`}
-                            style={{ width: `${item.progress}%` }}
-                          />
-                        </div>
                       </div>
 
                       {/* Action buttons (right aligned) */}
-                      <div className="flex items-center justify-end sm:ml-auto flex-shrink-0">
+                      <div className="flex items-center justify-end shrink-0 ml-[12px]">
                         <button
                           type="button"
                           disabled
@@ -977,12 +883,13 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   {isRealRoom && roomFiles.map(file => (
                     <div
                       key={file.id}
-                      className="relative w-full max-w-[759px] min-h-[74px] bg-[#FCFBF6] border border-[#E9E8E3] rounded-[12px] p-3 sm:px-[18px] sm:py-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4"
+                      className="relative w-full max-w-[759px] h-[74px] min-h-[74px] max-h-[74px] bg-[#FCFBF6] border border-[#E9E8E3] rounded-[12px] px-3 sm:px-[18px] flex items-center justify-between"
                     >
-                      <div className="flex items-center min-w-0 flex-1">
-                        {renderFileTile(file.originalFilename)}
+                      {/* File Tile + Name & Size (truncates with at least 12px gap to status chip) */}
+                      <div className="flex items-center min-w-0 flex-1 mr-[12px]">
+                        <FileTypeIcon filename={file.originalFilename} size="desktop" />
                         <div className="ml-3 sm:ml-[22px] min-w-0 flex-1 flex flex-col justify-center">
-                          <p className="text-[15px] sm:text-[16px] font-bold text-[#111111] leading-tight truncate sm:max-w-[240px] md:max-w-[280px]">
+                          <p className="text-[15px] sm:text-[16px] font-bold text-[#111111] leading-tight truncate">
                             {file.originalFilename}
                           </p>
                           <p className="mt-[4px] text-[12px] sm:text-[13px] font-medium text-[#666666] leading-none">
@@ -991,13 +898,13 @@ export const RoomView: React.FC<RoomViewProps> = ({
                         </div>
                       </div>
 
-                      {/* Status column */}
-                      <div className="flex items-center lg:absolute lg:left-[387px] lg:w-[150px]">
+                      {/* Status column: fixed 136px width, aligned across all rows */}
+                      <div className="w-[136px] shrink-0 flex items-center justify-center">
                         <StatusChip variant="uploaded" size="desktop" />
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex items-center justify-end sm:ml-auto flex-shrink-0">
+                      <div className="flex items-center justify-end shrink-0 ml-[12px]">
                         <button
                           type="button"
                           onClick={() => onDownloadFile(file)}

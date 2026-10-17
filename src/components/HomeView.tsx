@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import { Copy, Check, Loader2 } from 'lucide-react';
 import { FileItem } from './FileList.tsx';
+import { FileTypeIcon } from './FileTypeIcon.tsx';
 
 interface HomeViewProps {
   roomCode: string;
@@ -134,37 +135,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const getFileIcon = (filename: string) => {
-    const ext = filename.split('.').pop()?.toLowerCase();
-    if (ext === 'pdf') {
-      return <img src="/icon-pdf.webp" alt="PDF" className="w-10 h-10 sm:w-11 sm:h-11 object-contain" />;
-    }
-    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext || '')) {
-      return <img src="/icon-zip.webp" alt="ZIP" className="w-10 h-10 sm:w-11 sm:h-11 object-contain" />;
-    }
-    return <img src="/icon-pdf.webp" alt="File" className="w-10 h-10 sm:w-11 sm:h-11 object-contain" />;
-  };
 
-  // Default demo items matching mockup if no files uploaded yet in session
-  const displayFiles: FileItem[] =
-    files.length > 0
-      ? files
-      : [
-          {
-            id: 'demo-1',
-            originalFilename: 'lecture-notes.pdf',
-            sizeBytes: 2.4 * 1024 * 1024,
-            mimeType: 'application/pdf',
-            createdAt: Date.now() - 1000 * 60 * 5,
-          },
-          {
-            id: 'demo-2',
-            originalFilename: 'design-assets.zip',
-            sizeBytes: 18 * 1024 * 1024,
-            mimeType: 'application/zip',
-            createdAt: Date.now() - 1000 * 60 * 12,
-          },
-        ];
+
+  const displayFiles: FileItem[] = files;
 
   const displayUrl = shareUrl
     ? shareUrl.replace(/^https?:\/\//, '')
@@ -571,7 +544,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               >
                 {/* File Icon & Info */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="shrink-0">{getFileIcon(file.originalFilename)}</div>
+                  <div className="shrink-0"><FileTypeIcon filename={file.originalFilename} size="desktop" /></div>
                   <div className="min-w-0">
                     <h5
                       className="font-heading font-extrabold text-sm sm:text-base text-[#111111] truncate"

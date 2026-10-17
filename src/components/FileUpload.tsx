@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, File, Loader2, Plus } from 'lucide-react';
 import { StatusChip } from './StatusChip.tsx';
+import { FileTypeIcon } from './FileTypeIcon.tsx';
 
 interface FileUploadProps {
   roomId: string;
@@ -210,14 +211,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               key={idx}
               className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs text-xs"
             >
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <div className="flex items-center gap-2 truncate">
-                  <File className="w-4 h-4 text-slate-400 shrink-0" />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1 mr-[12px]">
+                  <FileTypeIcon filename={item.name} size="mobile" />
                   <span className="font-medium text-slate-800 truncate">{item.name}</span>
                   <span className="text-slate-400 shrink-0">({formatSize(item.size)})</span>
                 </div>
 
-                <div className="shrink-0">
+                <div className="w-[124px] shrink-0 flex items-center justify-center">
                   {item.status === 'completed' && (
                     <StatusChip variant="uploaded" label="Uploaded" size="mobile" />
                   )}
@@ -228,20 +229,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                     <StatusChip variant="declined" label="Failed" size="mobile" title={item.errorMessage} />
                   )}
                 </div>
-              </div>
-
-              {/* Progress bar */}
-              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-200 ${
-                    item.status === 'completed'
-                      ? 'bg-emerald-500'
-                      : item.status === 'error'
-                      ? 'bg-rose-500'
-                      : 'bg-blue-600'
-                  }`}
-                  style={{ width: `${item.progress}%` }}
-                />
               </div>
 
               {item.errorMessage && (
