@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, File, AlertCircle, CheckCircle2, Loader2, Plus } from 'lucide-react';
+import { UploadCloud, File, Loader2, Plus } from 'lucide-react';
+import { StatusChip } from './StatusChip.tsx';
 
 interface FileUploadProps {
   roomId: string;
@@ -218,17 +219,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
                 <div className="shrink-0">
                   {item.status === 'completed' && (
-                    <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Ready
-                    </span>
+                    <StatusChip variant="uploaded" label="Uploaded" size="mobile" />
                   )}
                   {item.status === 'uploading' && (
-                    <span className="font-semibold text-blue-600">{item.progress}%</span>
+                    <StatusChip variant="uploading" progress={item.progress} size="mobile" />
                   )}
                   {item.status === 'error' && (
-                    <span className="flex items-center gap-1 text-rose-600 font-medium" title={item.errorMessage}>
-                      <AlertCircle className="w-3.5 h-3.5" /> Error
-                    </span>
+                    <StatusChip variant="declined" label="Failed" size="mobile" title={item.errorMessage} />
                   )}
                 </div>
               </div>

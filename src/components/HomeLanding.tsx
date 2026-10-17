@@ -329,9 +329,9 @@ export const HomeLanding: React.FC<HomeLandingProps> = ({
           {/* Left: Logo */}
           <Logo onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
 
-          {/* Right: Made with 💗 by Musab.dev */}
+          {/* Right: Made with 💗 by Musab */}
           <div className="text-xs sm:text-sm md:text-base font-bold text-[#111111] select-none">
-            Made with 💗 by Musab.dev
+            Made with 💗 by Musab
           </div>
         </footer>
       </div>

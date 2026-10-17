@@ -54,7 +54,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
-      <div className="bg-[#FDF7ED] border-[3px] border-[#111111] rounded-[24px] shadow-[6px_6px_0_#111111] max-w-lg w-full p-6 sm:p-7 relative max-h-[90vh] overflow-y-auto font-sans">
+      <div className="bg-[#FDF7ED] border-[3px] border-[#111111] rounded-[24px] shadow-[6px_6px_0_#111111] max-w-lg w-full p-6 sm:p-7 relative max-h-[90vh] overflow-y-auto font-sans [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {/* Close Button */}
         <button
           onClick={onClose}

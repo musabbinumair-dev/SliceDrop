@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import { FileItem } from './FileList.tsx';
+import { StatusChip } from './StatusChip.tsx';
 
 export interface RoomData {
   id: string;
@@ -25,6 +26,7 @@ export interface StagedFile {
   file?: File;
   name: string;
   size: number;
+  rejected?: boolean;
 }
 
 interface RoomViewProps {
@@ -46,7 +48,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
   room,
   creatorToken,
   shareUrl,
-  maxFileSizeMb: _maxFileSizeMb,
+  maxFileSizeMb,
   onLeaveRoom,
   onRoomEnded,
   onRefreshRoom,
@@ -63,6 +65,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(room?.expiresInSeconds || 3600);
   const [isEnding, setIsEnding] = useState(false);
+  const [showConfirmEndModal, setShowConfirmEndModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [activeMenuFileId, setActiveMenuFileId] = useState<string | null>(null);
 
@@ -186,12 +189,12 @@ export const RoomView: React.FC<RoomViewProps> = ({
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  const handleEndRoom = async () => {
-    const confirmed = confirm(
-      'Are you sure you want to end this room? All uploaded files will be immediately erased from the server.'
-    );
-    if (!confirmed) return;
+  const handleEndRoom = () => {
+    setShowConfirmEndModal(true);
+  };
 
+  const confirmEndRoom = async () => {
+    setShowConfirmEndModal(false);
     if (!room || !creatorToken) {
       onRoomEnded();
       return;
@@ -241,6 +244,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
   const handleFilesPicked = (incoming: FileList | File[] | null) => {
     if (!incoming || incoming.length === 0) return;
     const list = Array.from(incoming);
+    const maxBytes = maxFileSizeMb * 1024 * 1024;
 
     if (isRealRoom) {
       onFileUpload(list);
@@ -250,6 +254,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
         file: f,
         name: f.name,
         size: f.size,
+        rejected: f.size > maxBytes,
       }));
       setStagedFiles(prev => [...prev, ...newStaged]);
     }
@@ -263,6 +268,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
   const handleCreateRoom = async () => {
     if (isRealRoom) return;
     const rawFiles = stagedFiles
+      .filter(s => !s.rejected)
       .map(s => s.file)
       .filter((f): f is File => Boolean(f));
     setStagedFiles([]);
@@ -591,19 +597,26 @@ export const RoomView: React.FC<RoomViewProps> = ({
                               </p>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={e => handleRemoveStagedFile(s.id, e)}
-                            className="w-[18px] h-[18px] flex items-center justify-center cursor-pointer flex-shrink-0 hover:opacity-70 transition-opacity"
-                            title="Remove"
-                            aria-label={`Remove ${s.name}`}
-                          >
-                            <img
-                              src="/icon-close-x.webp"
-                              alt="Remove"
-                              className="w-[18px] h-[18px] object-contain"
-                            />
-                          </button>
+                          <div className="flex items-center gap-3 shrink-0">
+                            {s.rejected ? (
+                              <StatusChip variant="declined" label="Declined" size="desktop" />
+                            ) : (
+                              <StatusChip variant="added" label="Added" size="desktop" />
+                            )}
+                            <button
+                              type="button"
+                              onClick={e => handleRemoveStagedFile(s.id, e)}
+                              className="w-[18px] h-[18px] flex items-center justify-center cursor-pointer flex-shrink-0 hover:opacity-70 transition-opacity"
+                              title="Remove"
+                              aria-label={`Remove ${s.name}`}
+                            >
+                              <img
+                                src="/icon-close-x.webp"
+                                alt="Remove"
+                                className="w-[18px] h-[18px] object-contain"
+                              />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -621,9 +634,9 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   <button
                     type="button"
                     onClick={handleCreateRoom}
-                    disabled={stagedFiles.length === 0}
+                    disabled={stagedFiles.length === 0 || stagedFiles.every(s => s.rejected)}
                     className={`w-full lg:w-[435px] max-w-full h-[58px] sm:h-[62px] rounded-[12px] border-[3px] border-[#111111] flex items-center justify-center gap-[12px] font-['Plus_Jakarta_Sans','Poppins',sans-serif] font-extrabold text-[20px] sm:text-[22px] text-[#111111] select-none transition-all ${
-                      stagedFiles.length === 0
+                      stagedFiles.length === 0 || stagedFiles.every(s => s.rejected)
                         ? 'bg-[#EDEBE6] shadow-none cursor-not-allowed text-[#888888] opacity-80'
                         : 'bg-[#FED22E] shadow-[5px_6px_0_#111111] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_4px_0_#111111] cursor-pointer'
                     }`}
@@ -901,16 +914,32 @@ export const RoomView: React.FC<RoomViewProps> = ({
                       </div>
 
                       {/* Status Column */}
-                      <div className="w-full sm:w-[150px] lg:absolute lg:left-[387px] flex flex-col justify-center">
-                        <div className="w-full h-[8px] sm:h-[10px] bg-[#EBEAE6] rounded-full overflow-hidden">
+                      <div className="w-full sm:w-[150px] lg:absolute lg:left-[387px] flex flex-col justify-center gap-1.5">
+                        {item.status === 'error' ? (
+                          <StatusChip
+                            variant="declined"
+                            label="Failed"
+                            size="desktop"
+                            title="Upload failed. Click to retry."
+                            onClick={() => {
+                              onFileUpload([new File([], item.name)]);
+                            }}
+                          />
+                        ) : (
+                          <StatusChip
+                            variant="uploading"
+                            progress={item.progress}
+                            size="desktop"
+                          />
+                        )}
+                        <div className="w-full h-[6px] sm:h-[7px] bg-[#EBEAE6] rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-[#0A78F5] rounded-full transition-all duration-300"
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              item.status === 'error' ? 'bg-[#DF6052]' : 'bg-[#007AFF]'
+                            }`}
                             style={{ width: `${item.progress}%` }}
                           />
                         </div>
-                        <span className="mt-[6px] sm:mt-[8px] text-[12px] sm:text-[14px] font-semibold text-[#1F4E8C] leading-none">
-                          Uploading... {item.progress}%
-                        </span>
                       </div>
 
                       {/* Action buttons (right aligned) */}
@@ -963,15 +992,8 @@ export const RoomView: React.FC<RoomViewProps> = ({
                       </div>
 
                       {/* Status column */}
-                      <div className="flex items-center gap-[6px] sm:gap-[8px] lg:absolute lg:left-[387px] lg:w-[150px]">
-                        <img
-                          src="/icon-check-green.webp"
-                          alt=""
-                          className="w-[15px] h-[15px] sm:w-[17px] sm:h-[17px] object-contain flex-shrink-0"
-                        />
-                        <span className="text-[13px] sm:text-[15px] font-semibold text-[#1E7A4C] leading-none">
-                          Uploaded
-                        </span>
+                      <div className="flex items-center lg:absolute lg:left-[387px] lg:w-[150px]">
+                        <StatusChip variant="uploaded" size="desktop" />
                       </div>
 
                       {/* Action buttons */}
@@ -1091,6 +1113,38 @@ export const RoomView: React.FC<RoomViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* End Room Confirmation Modal */}
+      {showConfirmEndModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-[#FDF7ED] border-[3px] border-[#111111] rounded-[24px] shadow-[6px_6px_0_#111111] max-w-md w-full p-6 sm:p-7 relative font-sans text-center">
+            <img src="/mascot-pizza.webp" alt="" className="w-16 h-16 mx-auto mb-4 object-contain" />
+            <h3 className="font-heading font-extrabold text-2xl text-[#111111] mb-2">
+              End Transfer Room?
+            </h3>
+            <p className="font-body text-sm text-[#666666] mb-6">
+              All uploaded files will be immediately erased from the server and the room will be closed. This action cannot be undone.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowConfirmEndModal(false)}
+                className="flex-1 py-3 px-4 rounded-[14px] bg-white border-[2.5px] border-[#111111] font-heading font-bold text-sm text-[#111111] shadow-[3px_3px_0_#111111] btn-pressable-sm cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmEndRoom}
+                disabled={isEnding}
+                className="flex-1 py-3 px-4 rounded-[14px] bg-[#FD3F77] hover:bg-[#FD3F77]/90 border-[2.5px] border-[#111111] font-heading font-extrabold text-sm text-white shadow-[3px_3px_0_#111111] btn-pressable cursor-pointer"
+              >
+                {isEnding ? 'Ending...' : 'Yes, End Room'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

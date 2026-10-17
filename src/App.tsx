@@ -70,6 +70,17 @@ export default function App() {
     });
   };
 
+  const removeCreatorToken = (roomId: string) => {
+    setCreatorTokens(prev => {
+      const next = { ...prev };
+      delete next[roomId];
+      try {
+        sessionStorage.setItem('quickdrop_tokens', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
   // Create a new real backend room, optionally uploading pre-staged files
   const createNewRoom = useCallback(async (stagedFiles?: File[]): Promise<RoomData | null> => {
     try {
@@ -329,7 +340,11 @@ export default function App() {
               maxFileSizeMb={systemInfo?.maxFileSizeMb || 100}
               onLeaveRoom={handleGoHome}
               onRoomEnded={() => {
+                if (currentRoom) {
+                  removeCreatorToken(currentRoom.id);
+                }
                 setCurrentRoom(null);
+                handleGoHome();
               }}
               onRefreshRoom={refreshRoom}
               onFileUpload={handleFileUpload}
@@ -351,7 +366,11 @@ export default function App() {
               maxFileSizeMb={systemInfo?.maxFileSizeMb || 100}
               onLeaveRoom={handleGoHome}
               onRoomEnded={() => {
+                if (currentRoom) {
+                  removeCreatorToken(currentRoom.id);
+                }
                 setCurrentRoom(null);
+                handleGoHome();
               }}
               onRefreshRoom={refreshRoom}
               onFileUpload={handleFileUpload}
