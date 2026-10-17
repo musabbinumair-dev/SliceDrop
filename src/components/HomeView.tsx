@@ -238,103 +238,84 @@ export const HomeView: React.FC<HomeViewProps> = ({
           id="slicedrop-native-picker"
         />
 
-        {/* 2. Upload Card (Wide white card, 2 columns split by thin vertical divider) */}
-        <div className="bg-white border-[3px] border-[#111111] rounded-[24px] shadow-hard p-3.5 sm:p-4 mb-3 sm:mb-4">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_220px] gap-3 sm:gap-4 items-stretch">
-            {/* Left Column: Dashed Dropzone */}
-            <div
-              onDragOver={e => {
-                e.preventDefault();
-                onDragEnter(e);
-              }}
-              onDragLeave={e => {
-                e.preventDefault();
-                onDragLeave(e);
-              }}
-              onDrop={e => {
-                e.preventDefault();
-                onDrop(e);
-              }}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-[20px] p-4 sm:p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${
-                isDragging
-                  ? 'bg-[#FED228]/20 border-[#111111]'
-                  : 'border-[#D4D4D8] hover:border-[#111111] bg-white'
-              }`}
-            >
-              <div className="relative inline-block mb-1">
-                <img
-                  src="/icon-cloud-upload.webp"
-                  alt="Upload cloud"
-                  className="w-11 h-11 sm:w-13 sm:h-13 object-contain"
-                />
-                <img
-                  src="/sparkle-pink-small-cloud.webp"
-                  alt=""
-                  className="absolute -top-1 -right-2 w-4 h-4 object-contain"
-                />
-              </div>
-
-              <span className="font-heading font-extrabold text-[19px] sm:text-[21px] text-[#111111] leading-tight">
-                Drop your files here
-              </span>
-              <span className="text-xs sm:text-[13px] font-semibold text-[#71717A] mt-0.5">
-                or <span className="text-[#8562FC] font-extrabold underline cursor-pointer">browse</span> your device
-              </span>
-
-              <span className="mt-2 px-3 py-0.5 rounded-full bg-[#F4F4F5] text-[10px] sm:text-[11px] font-bold text-[#71717A]">
-                Up to {maxFileSizeMb} MB per file
-              </span>
-            </div>
-
-            {/* Thin vertical divider (Desktop) */}
-            <div className="hidden md:block w-[1px] bg-[#E4E4E7] self-stretch" />
-
-            {/* Right Column: Big Yellow Choose Files Button */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-[#FED228] border-[3px] border-[#111111] rounded-[18px] shadow-hard-btn btn-pressable flex flex-col items-center justify-center gap-1.5 p-4 cursor-pointer group select-none min-h-[110px] md:min-h-[145px]"
-            >
-              <img
-                src="/icon-file-plus.webp"
-                alt="File plus icon"
-                className="w-8 h-8 sm:w-9 sm:h-9 object-contain group-hover:scale-105 transition-transform"
-              />
-              <span className="font-heading font-extrabold text-base sm:text-lg text-[#111111]">
-                Choose files
-              </span>
+        {/* 2. Upload Card */}
+        <div className="bg-[#FDFAF5] border-[3px] border-[#111111] rounded-[22px] shadow-hard p-6 mb-6">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            <button onClick={() => window.history.back()} className="cursor-pointer">
+              <img src="/icon-arrow-left.webp" alt="Back" className="w-6 h-6" />
             </button>
+            <h2 className="font-heading font-extrabold text-xl text-[#111111]">Create a sharing room</h2>
           </div>
 
-          {/* Upload Progress Queue if files are actively uploading */}
-          {uploadQueue.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-[#E4E4E7] space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-[#111111]">
-                <span>Uploading files ({uploadQueue.filter(q => q.status === 'completed').length}/{uploadQueue.length})</span>
-                {isUploading && (
-                  <span className="flex items-center gap-1.5 text-[#8562FC]">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Processing slice...</span>
-                  </span>
-                )}
+          {/* Heading and Subtitle */}
+          <div className="mb-8">
+            <div className="flex items-start">
+              <h1 className="font-heading font-extrabold text-[42px] leading-tight text-[#111111] max-w-lg">
+                Add your files and create a room.
+              </h1>
+              <img src="/sparkle-lines-right.webp" alt="" className="w-10 h-10 -ml-2 -mt-2" />
+            </div>
+            <p className="text-[#666666] font-medium text-lg mt-2">
+              Upload files, get a 6-digit code and share it anywhere.
+            </p>
+          </div>
+
+          {/* Dropzone */}
+          <div
+            onDragOver={e => { e.preventDefault(); onDragEnter(e); }}
+            onDragLeave={e => { e.preventDefault(); onDragLeave(e); }}
+            onDrop={e => { e.preventDefault(); onDrop(e); }}
+            onClick={() => fileInputRef.current?.click()}
+            className="border-2 border-dashed border-[#D4D4D8] rounded-[20px] p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-[#111111] transition-colors bg-white mb-6"
+          >
+            <img src="/mascot-pizza.webp" alt="Pizza" className="w-20 h-20 mb-4" />
+            <p className="font-heading font-extrabold text-xl text-[#111111]">Drag & drop files here</p>
+            <p className="font-semibold text-[#111111] mb-4">or click to browse</p>
+            <div className="bg-[#F4F4F5] px-4 py-2 rounded-full text-sm font-bold text-[#71717A]">
+              Max file size: 100 MB • Multiple files allowed
+            </div>
+          </div>
+
+          {/* Selected Files */}
+          {files.length > 0 && (
+            <div className="border border-[#E4E4E7] rounded-[16px] p-4 mb-6 bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-heading font-extrabold text-lg">Selected files ({files.length})</h3>
+                <span className="text-[#666666] font-medium">Total: {formatSize(files.reduce((acc, f) => acc + f.sizeBytes, 0))}</span>
               </div>
-              {uploadQueue.slice(-3).map((item, idx) => (
-                <div key={idx} className="bg-[#FDF7ED] border-2 border-[#111111] rounded-xl p-2 text-xs">
-                  <div className="flex items-center justify-between mb-1 font-bold">
-                    <span className="truncate max-w-xs">{item.name}</span>
-                    <span>{item.progress}%</span>
+              <div className="space-y-3">
+                {files.map(file => (
+                  <div key={file.id} className="flex items-center justify-between border border-[#E9E8E3] rounded-[12px] p-3 bg-[#FCFBF6]">
+                    <div className="flex items-center gap-3">
+                      <FileTypeIcon filename={file.originalFilename} size="desktop" />
+                      <div>
+                        <p className="font-bold">{file.originalFilename}</p>
+                        <p className="text-sm text-[#666666]">{formatSize(file.sizeBytes)}</p>
+                      </div>
+                    </div>
+                    <button className="cursor-pointer" onClick={() => { /* Implement delete */ }}>
+                      <img src="/icon-close.webp" alt="Delete" className="w-5 h-5" />
+                    </button>
                   </div>
-                  <div className="w-full bg-white border border-[#111111] rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-[#22C55E] h-full transition-all duration-150"
-                      style={{ width: `${item.progress}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
+
+          {/* Create Room Button */}
+          <div className="relative flex items-center justify-center">
+            <button
+              onClick={() => { /* Implement create room */ }}
+              className="w-full bg-[#FED228] border-[3px] border-[#111111] rounded-[16px] shadow-hard-btn py-5 flex items-center justify-center gap-3 cursor-pointer group relative overflow-hidden"
+            >
+              {/* Sparkles on the button */}
+              <img src="/sparkle-lines-left.webp" alt="" className="w-6 h-6 absolute left-4 opacity-50" />
+              <img src="/mascot-pizza.webp" alt="Pizza" className="w-8 h-8" />
+              <span className="font-heading font-extrabold text-xl text-[#111111]">Create Room</span>
+              <img src="/sparkle-lines-right.webp" alt="" className="w-6 h-6 absolute right-4 opacity-50" />
+            </button>
+          </div>
         </div>
 
         {/* 3. Sharing Room Card (3 columns, vertical dividers) */}

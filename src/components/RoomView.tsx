@@ -45,6 +45,23 @@ interface RoomViewProps {
   onCreateNewRoom: (stagedFiles?: File[]) => Promise<RoomData | null>;
 }
 
+const getFileTileConfig = (filename: string) => {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  if (ext === 'pdf') {
+    return { bg: '#FC3A76', type: 'pdf', icon: '/icon-pdf-room.webp', label: 'PDF' };
+  }
+  if (['jpg', 'jpeg', 'png', 'webp', 'heic', 'gif', 'svg', 'bmp'].includes(ext)) {
+    return { bg: '#7E62F3', type: 'image', icon: '/icon-image-purple.webp', label: 'IMG' };
+  }
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+    return { bg: '#40B946', type: 'zip', icon: '/icon-zip-green.webp', label: 'ZIP' };
+  }
+  if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) {
+    return { bg: '#FF7617', type: 'video', icon: '/icon-video-orange.webp', label: 'VID' };
+  }
+  return { bg: '#6B7280', type: 'other', label: ext.toUpperCase().slice(0, 4) || 'FILE' };
+};
+
 export const RoomView: React.FC<RoomViewProps> = ({
   room,
   creatorToken,
@@ -63,60 +80,14 @@ export const RoomView: React.FC<RoomViewProps> = ({
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [copiedLink, setCopiedLink] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(room?.expiresInSeconds || 3600);
   const [isEnding, setIsEnding] = useState(false);
   const [showConfirmEndModal, setShowConfirmEndModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [activeMenuFileId, setActiveMenuFileId] = useState<string | null>(null);
 
-  // Proportional layout scaling for desktop (two-column row layout)
-  const contentRef = useRef<HTMLDivElement | null>(null);
-  const [scale, setScale] = useState<number>(1);
-  const [contentHeight, setContentHeight] = useState<number>(0);
-  const [isDesktop, setIsDesktop] = useState<boolean>(true);
-
-  useEffect(() => {
-    const updateLayout = () => {
-      if (typeof window === 'undefined') return;
-      const vw = window.innerWidth;
-      const desktop = vw >= 1024;
-      setIsDesktop(desktop);
-
-      if (desktop && vw < 1447) {
-        const available = Math.max(992, vw - 32);
-        setScale(Math.min(1, available / 1415));
-      } else {
-        setScale(1);
-      }
-    };
-
-    updateLayout();
-    window.addEventListener('resize', updateLayout);
-    return () => window.removeEventListener('resize', updateLayout);
-  }, []);
-
-  useEffect(() => {
-    if (!contentRef.current) return;
-    const updateHeight = () => {
-      if (contentRef.current) {
-        setContentHeight(contentRef.current.offsetHeight);
-      }
-    };
-    updateHeight();
-
-    const ro = new ResizeObserver(() => {
-      if (contentRef.current) {
-        setContentHeight(contentRef.current.offsetHeight);
-      }
-    });
-    ro.observe(contentRef.current);
-    return () => ro.disconnect();
-  }, []);
-
   const isRealRoom = Boolean(room && room.id && !room.id.startsWith('demo-room-init'));
   const activeCode = room?.code || '482731';
-  const codeDigits = activeCode.padEnd(6, '0').slice(0, 6).split('');
   const effectiveShareUrl = shareUrl || `https://slicedrop.app/r/${activeCode}`;
 
   useEffect(() => {
@@ -182,41 +153,80 @@ export const RoomView: React.FC<RoomViewProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const handleCopyCode = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (!activeCode) return;
-    navigator.clipboard.writeText(activeCode);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
+  const handleFilesPicked = (incoming: FileList | File[] | null) => {
+    if (!incoming || incoming.length === 0) return;
+    const maxBytes = maxFileSizeMb * 1024 * 1024;
+
+    if (isRealRoom) {
+      onFileUpload(incoming);
+      return;
+    }
+
+    const filesArray = Array.from(incoming);
+    const newItems: StagedFile[] = filesArray.map(file => {
+      const isOversized = file.size > maxBytes;
+      return {
+        id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
+        file,
+        name: file.name,
+        size: file.size,
+        rejected: isOversized,
+      };
+    });
+
+    setStagedFiles(prev => [...prev, ...newItems]);
   };
 
-  const handleEndRoom = () => {
+  const handleRemoveStagedFile = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStagedFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  const handleCreateRoom = async () => {
+    const validFiles = stagedFiles
+      .filter(s => !s.rejected && s.file)
+      .map(s => s.file as File);
+
+    if (validFiles.length === 0) return;
+
+    try {
+      await onCreateNewRoom(validFiles);
+      setStagedFiles([]);
+    } catch (err) {
+      console.error('Error creating room from staged files:', err);
+    }
+  };
+
+  const handleEndRoom = async () => {
+    if (!isRealRoom || !room) {
+      onLeaveRoom();
+      return;
+    }
     setShowConfirmEndModal(true);
   };
 
   const confirmEndRoom = async () => {
-    setShowConfirmEndModal(false);
-    if (!room || !creatorToken) {
-      onRoomEnded();
-      return;
-    }
-
-    setIsEnding(true);
+    if (!room) return;
     try {
-      const res = await fetch(`/api/rooms/${room.id}/end`, {
-        method: 'POST',
+      setIsEnding(true);
+      const res = await fetch(`/api/rooms/${room.id}`, {
+        method: 'DELETE',
         headers: {
-          'x-creator-token': creatorToken,
+          'Content-Type': 'application/json',
+          ...(creatorToken ? { 'x-creator-token': creatorToken } : {}),
         },
       });
-      if (res.ok) {
-        onRoomEnded();
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to end room.');
+
+      if (!res.ok) {
+        throw new Error('Failed to end room');
       }
-    } catch {
-      alert('Network error while ending room.');
+
+      setShowConfirmEndModal(false);
+      onRoomEnded();
+    } catch (err) {
+      console.error('Failed to end room:', err);
+      setShowConfirmEndModal(false);
+      onRoomEnded();
     } finally {
       setIsEnding(false);
     }
@@ -233,80 +243,72 @@ export const RoomView: React.FC<RoomViewProps> = ({
       });
       if (res.ok) {
         await onRefreshRoom();
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to delete file.');
       }
-    } catch {
-      alert('Network error while deleting file.');
+    } catch (err) {
+      console.error('Failed to delete file:', err);
     }
   };
 
-  const handleFilesPicked = (incoming: FileList | File[] | null) => {
-    if (!incoming || incoming.length === 0) return;
-    const list = Array.from(incoming);
-    const maxBytes = maxFileSizeMb * 1024 * 1024;
-
-    if (isRealRoom) {
-      onFileUpload(list);
-    } else {
-      const newStaged: StagedFile[] = list.map(f => ({
-        id: `staged-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        file: f,
-        name: f.name,
-        size: f.size,
-        rejected: f.size > maxBytes,
-      }));
-      setStagedFiles(prev => [...prev, ...newStaged]);
-    }
-  };
-
-  const handleRemoveStagedFile = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setStagedFiles(prev => prev.filter(f => f.id !== id));
-  };
-
-  const handleCreateRoom = async () => {
-    if (isRealRoom) return;
-    const rawFiles = stagedFiles
-      .filter(s => !s.rejected)
-      .map(s => s.file)
-      .filter((f): f is File => Boolean(f));
-    setStagedFiles([]);
-    await onCreateNewRoom(rawFiles.length > 0 ? rawFiles : undefined);
-  };
-
-  const formatBytes = (bytes: number) => {
-    if (bytes <= 0) return '0 B';
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-
   const totalStagedBytes = stagedFiles.reduce((acc, f) => acc + f.size, 0);
-  const roomFiles: FileItem[] = isRealRoom && room ? room.files : [];
+  const roomFiles: FileItem[] = room ? room.files : [];
 
   // If room was ended or expired
   if (isRealRoom && room && (room.status !== 'active' || remainingSeconds === 0)) {
     return (
       <div className="relative min-h-[calc(100vh-80px)] flex items-center justify-center p-4">
-        {/* Smooth CSS background shapes */}
+        {/* Background shapes */}
         <div
-          className="fixed -top-[160px] -left-[180px] w-[420px] h-[360px] rounded-full bg-[#FD3F77] pointer-events-none select-none z-0"
+          style={{
+            position: 'fixed',
+            top: '-16vw',
+            left: '-14vw',
+            width: '40vw',
+            height: '40vw',
+            borderRadius: '9999px',
+            backgroundColor: '#FD3F77',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 0,
+          }}
           aria-hidden="true"
         />
         <div
-          className="fixed -bottom-[120px] -left-[150px] w-[300px] h-[300px] rounded-full bg-[#8562FC] pointer-events-none select-none z-0"
+          style={{
+            position: 'fixed',
+            bottom: '-10vw',
+            left: '-8vw',
+            width: '28vw',
+            height: '28vw',
+            borderRadius: '9999px',
+            backgroundColor: '#8562FC',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 0,
+          }}
           aria-hidden="true"
         />
-        <img
-          src="/room-blob-yellow-top-right.webp"
-          alt=""
-          className="fixed top-0 right-0 w-64 sm:w-80 md:w-96 max-w-none pointer-events-none select-none z-0"
-        />
         <div
-          className="fixed -bottom-[100px] -right-[100px] w-[200px] h-[200px] rounded-full bg-[#FED228] border-[3px] border-[#111111] shadow-[4px_4px_0_#111111] pointer-events-none select-none z-0"
+          style={{
+            position: 'fixed',
+            bottom: '-8vw',
+            right: '-8vw',
+            width: '24vw',
+            height: '24vw',
+            borderRadius: '9999px',
+            backgroundColor: '#FED228',
+            border: 'calc(3 * var(--u)) solid #111111',
+            boxShadow: 'calc(4 * var(--u)) calc(4 * var(--u)) 0 #111111',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 0,
+          }}
           aria-hidden="true"
         />
 
@@ -333,28 +335,58 @@ export const RoomView: React.FC<RoomViewProps> = ({
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-80px)] bg-[#FDF7ED]">
-      {/* ================= BACKGROUND DECORATIONS (behind all cards, z-0) ================= */}
-      {/* 9. Pure CSS smooth left shapes */}
+    <div className="relative min-h-[calc(100vh-90px)] bg-[#FDF7ED] overflow-x-hidden">
+      {/* ================= BACKGROUND DECORATIONS (z-0, never overlapping card content) ================= */}
+      {/* Large pink circle (~40% viewport width) bleeding off top-left corner */}
       <div
-        className="fixed -top-[160px] -left-[180px] w-[420px] h-[360px] rounded-full bg-[#FD3F77] pointer-events-none select-none z-0"
-        aria-hidden="true"
-      />
-      <div
-        className="fixed -bottom-[120px] -left-[150px] w-[300px] h-[300px] rounded-full bg-[#8562FC] pointer-events-none select-none z-0"
+        style={{
+          position: 'fixed',
+          top: '-16vw',
+          left: '-14vw',
+          width: '40vw',
+          height: '40vw',
+          borderRadius: '9999px',
+          backgroundColor: '#FD3F77',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          zIndex: 0,
+        }}
         aria-hidden="true"
       />
 
-      {/* Top-right yellow blob behind header & settings */}
-      <img
-        src="/room-blob-yellow-top-right.webp"
-        alt=""
-        className="fixed top-0 right-0 w-64 sm:w-80 md:w-96 max-w-none pointer-events-none select-none z-0"
+      {/* Purple circle bleeding off bottom-left corner */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '-10vw',
+          left: '-8vw',
+          width: '28vw',
+          height: '28vw',
+          borderRadius: '9999px',
+          backgroundColor: '#8562FC',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          zIndex: 0,
+        }}
+        aria-hidden="true"
       />
 
-      {/* 8. Bottom-right yellow circle: ~200px diameter anchored to corner, no pizza overlapping */}
+      {/* Yellow circle bleeding off bottom-right corner */}
       <div
-        className="fixed -bottom-[100px] -right-[100px] w-[200px] h-[200px] rounded-full bg-[#FED228] border-[3px] border-[#111111] shadow-[4px_4px_0_#111111] pointer-events-none select-none z-0"
+        style={{
+          position: 'fixed',
+          bottom: '-8vw',
+          right: '-8vw',
+          width: '24vw',
+          height: '24vw',
+          borderRadius: '9999px',
+          backgroundColor: '#FED228',
+          border: 'calc(3 * var(--u)) solid #111111',
+          boxShadow: 'calc(4 * var(--u)) calc(4 * var(--u)) 0 #111111',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          zIndex: 0,
+        }}
         aria-hidden="true"
       />
 
@@ -371,555 +403,1574 @@ export const RoomView: React.FC<RoomViewProps> = ({
         id="room-file-input"
       />
 
-      {/* MAIN LAYOUT (Two-column on Desktop >=1024px, Single-column on Mobile/Tablet <1024px) */}
-      <div className="relative z-10 w-full max-w-[1487px] mx-auto px-4 sm:px-6 pt-2 pb-24">
-        <div className="w-full flex justify-center">
+      {/* ================= MAIN TWO-COLUMN GRID LAYOUT ================= */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 'calc(864 * var(--u))',
+          paddingLeft: 'calc(15 * var(--u))',
+          paddingRight: 'calc(15 * var(--u))',
+          marginTop: 'calc(11 * var(--u))',
+          paddingBottom: 'calc(40 * var(--u))',
+        }}
+        className="mx-auto relative z-10"
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '338fr 480fr',
+            gap: 'calc(17 * var(--u))',
+            width: '100%',
+            alignItems: 'stretch',
+          }}
+        >
+          {/* ================= LEFT COLUMN: CREATE A SHARING ROOM CARD ================= */}
           <div
-            ref={contentRef}
             style={
-              isDesktop && scale < 1
-                ? {
-                    width: '1415px',
-                    transform: `scale(${scale})`,
-                    transformOrigin: 'top center',
-                    flexShrink: 0,
-                  }
-                : undefined
+              {
+                '--lu': 'clamp(0.5px, calc(100vw / 1487), 1.15px)',
+                width: '100%',
+                minWidth: 0,
+                position: 'relative',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+              } as React.CSSProperties
             }
-            className="w-full grid grid-cols-1 lg:grid-cols-[572px_815px] lg:justify-center gap-6 lg:gap-[28px] max-w-[640px] md:max-w-[768px] lg:max-w-none mx-auto"
           >
-            
-            {/* ================= 1. CREATE A SHARING ROOM ================= */}
-            <div className="relative w-full lg:w-[572px] flex-shrink-0 lg:row-span-2">
-              {/* Purple background shape peeking behind card at bottom-left */}
+            {/* 7. BACKGROUND: Purple (#8562FC) shape peeking behind card at bottom-left corner */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 'calc(-20 * var(--lu))',
+                bottom: 0,
+                width: 'calc(240 * var(--lu))',
+                height: 'calc(160 * var(--lu))',
+                borderRadius: 'calc(60 * var(--lu))',
+                backgroundColor: '#8562FC',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                zIndex: -1,
+              }}
+              aria-hidden="true"
+            />
+
+            {/* CARD: 572px wide, bg #FCF9F2, 3px solid #111, radius 22px, hard shadow 5px 5px 0 #111, inner padding 32px left/right, 24px top/bottom */}
+            <div
+              style={{
+                width: '100%',
+                maxWidth: 'calc(572 * var(--lu))',
+                height: '100%',
+                backgroundColor: '#FCF9F2',
+                border: 'calc(3 * var(--lu)) solid #111111',
+                borderRadius: 'calc(22 * var(--lu))',
+                boxShadow: 'calc(5 * var(--lu)) calc(5 * var(--lu)) 0 #111111',
+                padding: 'calc(24 * var(--lu)) calc(32 * var(--lu))',
+                position: 'relative',
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+              className="flex flex-col"
+            >
+              {/* 1. BACK ROW: center at y=38 from card top, gap: 12px */}
+              <button
+                type="button"
+                onClick={onLeaveRoom}
+                style={{
+                  fontSize: 'calc(17 * var(--lu))',
+                  fontWeight: 600,
+                  color: '#111111',
+                  gap: 'calc(12 * var(--lu))',
+                }}
+                className="flex items-center hover:opacity-75 transition-opacity cursor-pointer w-fit leading-none whitespace-nowrap select-none"
+                aria-label="Back to home"
+              >
+                <img
+                  src="/icon-arrow-left.webp"
+                  alt=""
+                  style={{ width: 'calc(18 * var(--lu))', height: 'calc(18 * var(--lu))' }}
+                  className="object-contain shrink-0"
+                />
+                <span>{isRealRoom ? 'Back to home' : 'Create a sharing room'}</span>
+              </button>
+
+              {/* 2. HEADLINE: top ~42px below back row, line pitch 48px, font-size ~52px, line-height ~0.92, weight 800 */}
               <div
-                className="absolute -left-[20px] bottom-0 w-[240px] h-[160px] rounded-[60px] bg-[#8562FC] pointer-events-none select-none -z-10"
-                aria-hidden="true"
-              />
-
-              {/* CARD: #FCF9F2, 3px solid #111, radius 22px, shadow 5px 5px 0 #111 */}
-              <div className="w-full lg:w-[572px] bg-[#FCF9F2] border-[3px] border-[#111111] rounded-[22px] shadow-[5px_5px_0_#111111] px-4 sm:px-[32px] py-[24px] flex flex-col relative z-0">
-                
-                {/* 1. BACK ROW */}
-                <button
-                  type="button"
-                  onClick={onLeaveRoom}
-                  className="flex items-center gap-[12px] text-[16px] sm:text-[17px] font-semibold text-[#111111] hover:opacity-75 transition-opacity cursor-pointer w-fit leading-none"
-                  aria-label="Back to home"
-                >
+                style={{
+                  marginTop: 'calc(42 * var(--lu))',
+                  fontFamily: "'Plus Jakarta Sans', 'Outfit', 'Poppins', sans-serif",
+                }}
+                className="relative"
+              >
+                {/* Line 1: "Add your files" + Pink sparkle (~48px wide, placed after "files", 6px higher than text top) */}
+                <div className="flex items-center whitespace-nowrap relative">
+                  <span
+                    style={{
+                      fontSize: 'calc(52 * var(--lu))',
+                      lineHeight: 0.92,
+                      fontWeight: 800,
+                      color: '#111111',
+                      letterSpacing: '-0.02em',
+                    }}
+                  >
+                    {isRealRoom ? 'Upload files' : 'Add your files'}
+                  </span>
                   <img
-                    src="/icon-arrow-left.webp"
+                    src="/sparkle-pink-title.webp"
                     alt=""
-                    className="w-[18px] h-[18px] object-contain flex-shrink-0"
+                    style={{
+                      width: 'calc(48 * var(--lu))',
+                      height: 'calc(48 * var(--lu))',
+                      marginLeft: 'calc(14 * var(--lu))',
+                      transform: 'translateY(calc(-6 * var(--lu)))',
+                    }}
+                    className="object-contain pointer-events-none select-none shrink-0"
                   />
-                  <span>Create a sharing room</span>
-                </button>
-
-                {/* 2. HEADLINE */}
-                <div className="mt-[32px] sm:mt-[42px]">
-                  <h1 className="font-['Plus_Jakarta_Sans',sans-serif] font-extrabold text-[32px] sm:text-[42px] lg:text-[52px] leading-[36px] sm:leading-[44px] lg:leading-[48px] tracking-[-0.02em] text-[#111111]">
-                    <span className="inline-flex items-center flex-wrap">
-                      <span>Add your files</span>
-                      <img
-                        src="/sparkle-pink-title.webp"
-                        alt=""
-                        className="w-[36px] h-[36px] sm:w-[48px] sm:h-[48px] object-contain ml-[10px] sm:ml-[12px] -translate-y-[4px] sm:-translate-y-[6px] pointer-events-none select-none flex-shrink-0"
-                      />
-                    </span>
-                    <br />
-                    <span>and create a room.</span>
-                  </h1>
                 </div>
+                {/* Line 2: "and create a room." */}
+                <div className="whitespace-nowrap" style={{ marginTop: 'calc(4 * var(--lu))' }}>
+                  <span
+                    style={{
+                      fontSize: 'calc(52 * var(--lu))',
+                      lineHeight: 0.92,
+                      fontWeight: 800,
+                      color: '#111111',
+                      letterSpacing: '-0.02em',
+                    }}
+                  >
+                    {isRealRoom ? 'to this room.' : 'and create a room.'}
+                  </span>
+                </div>
+              </div>
 
-                {/* 3. SUBTITLE */}
-                <p className="mt-[12px] text-[15px] sm:text-[17px] font-medium text-[#5E6470] leading-snug">
-                  Upload files, get a 6-digit code and share it anywhere.
+              {/* 3. SUBTITLE: 12px below headline, 17px, weight 500, #5E6470, one line */}
+              <p
+                style={{
+                  fontSize: 'calc(17 * var(--lu))',
+                  fontWeight: 500,
+                  color: '#5E6470',
+                  marginTop: 'calc(12 * var(--lu))',
+                }}
+                className="whitespace-nowrap leading-tight"
+              >
+                {isRealRoom
+                  ? 'Drop files here or click to browse and share instantly.'
+                  : 'Upload files, get a 6-digit code and share it anywhere.'}
+              </p>
+
+              {/* 4. DROPZONE: gap above: 28px, 508px x 246px, 2px dashed #C9C9C9, radius 14px, no fill */}
+              <div
+                onDragOver={e => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={e => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                }}
+                onDrop={e => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  if (e.dataTransfer.files) {
+                    handleFilesPicked(e.dataTransfer.files);
+                  }
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  width: '100%',
+                  maxWidth: 'calc(508 * var(--lu))',
+                  height: 'calc(246 * var(--lu))',
+                  borderRadius: 'calc(14 * var(--lu))',
+                  borderWidth: 'calc(2 * var(--lu))',
+                  borderColor: isDragging ? '#111111' : '#C9C9C9',
+                  borderStyle: 'dashed',
+                  marginTop: 'calc(28 * var(--lu))',
+                  backgroundColor: isDragging ? 'rgba(254, 210, 40, 0.1)' : 'transparent',
+                  paddingTop: 'calc(24 * var(--lu))',
+                  boxSizing: 'border-box',
+                }}
+                className="flex flex-col items-center cursor-pointer transition-colors select-none"
+              >
+                {/* Pizza illustration with sparkles ~148px wide */}
+                <img
+                  src="/dropzone-pizza-sparkles.webp"
+                  alt="Drop files"
+                  style={{ width: 'calc(148 * var(--lu))', height: 'auto' }}
+                  className="object-contain pointer-events-none select-none"
+                />
+
+                {/* "Drag & drop files here" 19px, weight 700, black, ~22px below illustration */}
+                <p
+                  style={{
+                    fontSize: 'calc(19 * var(--lu))',
+                    fontWeight: 700,
+                    color: '#111111',
+                    marginTop: 'calc(22 * var(--lu))',
+                  }}
+                  className="font-heading leading-none whitespace-nowrap"
+                >
+                  Drag &amp; drop files here
                 </p>
 
-                {/* 4. DROPZONE (Full-width on mobile, pizza illustration centered) */}
-                <div
-                  onDragOver={e => {
-                    e.preventDefault();
-                    setIsDragging(true);
+                {/* "or click to browse" 15px, weight 600, black, no underline, 6px below */}
+                <p
+                  style={{
+                    fontSize: 'calc(15 * var(--lu))',
+                    fontWeight: 600,
+                    color: '#111111',
+                    marginTop: 'calc(6 * var(--lu))',
                   }}
-                  onDragLeave={e => {
-                    e.preventDefault();
-                    setIsDragging(false);
-                  }}
-                  onDrop={e => {
-                    e.preventDefault();
-                    setIsDragging(false);
-                    if (e.dataTransfer.files) {
-                      handleFilesPicked(e.dataTransfer.files);
-                    }
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`mt-[24px] sm:mt-[28px] w-full lg:max-w-[508px] min-h-[220px] sm:h-[246px] border-[2px] border-dashed border-[#C9C9C9] rounded-[14px] bg-transparent flex flex-col items-center justify-center cursor-pointer transition-colors p-4 relative ${
-                    isDragging ? 'bg-[#FED228]/10 border-[#111111]' : 'hover:border-neutral-400'
-                  }`}
+                  className="leading-none whitespace-nowrap"
                 >
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <img
-                      src="/dropzone-pizza-sparkles.webp"
-                      alt="Drop files"
-                      className="w-[120px] sm:w-[148px] object-contain pointer-events-none select-none"
-                    />
-                    <p className="mt-[16px] sm:mt-[20px] text-[18px] sm:text-[19px] font-bold text-[#111111] leading-none">
-                      Drag &amp; drop files here
-                    </p>
-                    <p className="mt-[6px] text-[14px] sm:text-[15px] font-semibold text-[#111111] leading-none">
-                      or <span className="cursor-pointer underline sm:no-underline">click to browse</span>
-                    </p>
-                    <div className="mt-[12px] min-h-[25px] py-1 px-[12px] sm:px-[14px] bg-[#EAEBED] rounded-full flex items-center justify-center text-[11px] sm:text-[12.5px] font-medium text-[#555555] leading-tight text-center select-none">
-                      Max file size: 100 MB <span className="mx-[8px]">•</span> Multiple files allowed
-                    </div>
-                  </div>
+                  or click to browse
+                </p>
+
+                {/* Gray pill centered, 12px below, height 25px, radius 999px, bg #EAEBED, text 12.5px weight 500 #555 */}
+                <div
+                  style={{
+                    marginTop: 'calc(12 * var(--lu))',
+                    height: 'calc(25 * var(--lu))',
+                    paddingLeft: 'calc(14 * var(--lu))',
+                    paddingRight: 'calc(14 * var(--lu))',
+                    borderRadius: '999px',
+                    backgroundColor: '#EAEBED',
+                    fontSize: 'calc(12.5 * var(--lu))',
+                    fontWeight: 500,
+                    color: '#555555',
+                  }}
+                  className="inline-flex items-center justify-center whitespace-nowrap leading-none"
+                >
+                  Max file size: 100 MB
+                  <span style={{ margin: '0 calc(8 * var(--lu))' }}>•</span>
+                  Multiple files allowed
+                </div>
+              </div>
+
+              {/* 5. SELECTED FILES BOX: gap above 20px, 508px wide, bg #FCFBF6, border 1px solid #E0DED8, radius 10px, padding 16px */}
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: 'calc(508 * var(--lu))',
+                  backgroundColor: '#FCFBF6',
+                  border: 'calc(1 * var(--lu)) solid #E0DED8',
+                  borderRadius: 'calc(10 * var(--lu))',
+                  padding: 'calc(16 * var(--lu))',
+                  marginTop: 'calc(20 * var(--lu))',
+                  boxSizing: 'border-box',
+                }}
+                className="flex flex-col"
+              >
+                {/* Header: "Selected files (N)" 16px weight 700, "Total: X MB" 13px weight 500 #666 */}
+                <div
+                  style={{ marginBottom: 'calc(14 * var(--lu))' }}
+                  className="flex items-center justify-between"
+                >
+                  <span
+                    style={{
+                      fontSize: 'calc(16 * var(--lu))',
+                      fontWeight: 700,
+                      color: '#111111',
+                    }}
+                    className="leading-none whitespace-nowrap"
+                  >
+                    Selected files ({stagedFiles.length})
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 'calc(13 * var(--lu))',
+                      fontWeight: 500,
+                      color: '#666666',
+                    }}
+                    className="leading-none whitespace-nowrap"
+                  >
+                    Total: {formatBytes(totalStagedBytes)}
+                  </span>
                 </div>
 
-                {/* 5. SELECTED FILES BOX (Full-width on mobile, filenames protected from overflow) */}
-                <div className="mt-[20px] w-full lg:max-w-[508px] bg-[#FCFBF6] border border-[#E0DED8] rounded-[10px] p-[14px] sm:p-[16px] flex flex-col">
-                  <div className="flex items-center justify-between mb-[14px]">
-                    <span className="text-[15px] sm:text-[16px] font-bold text-[#111111] leading-none">
-                      Selected files ({stagedFiles.length})
-                    </span>
-                    <span className="text-[12px] sm:text-[13px] font-medium text-[#666666] leading-none">
-                      Total: {formatBytes(totalStagedBytes)}
-                    </span>
+                {stagedFiles.length === 0 ? (
+                  <div
+                    style={{
+                      height: 'calc(50 * var(--lu))',
+                      fontSize: 'calc(13 * var(--lu))',
+                    }}
+                    className="flex items-center justify-center text-[#888888] font-medium text-center"
+                  >
+                    No files selected yet. Drop files above.
                   </div>
-
-                  {stagedFiles.length === 0 ? (
-                    <p className="text-[13px] font-medium text-[#888888] text-center py-4">
-                      No files selected yet. Drop files above.
-                    </p>
-                  ) : (
-                    <div className="space-y-[8px]">
-                      {stagedFiles.map(s => (
+                ) : (
+                  <div
+                    style={{
+                      gap: 'calc(8 * var(--lu))',
+                      maxHeight: 'calc(230 * var(--lu))',
+                    }}
+                    className="flex flex-col overflow-y-auto"
+                  >
+                    {stagedFiles.map(s => {
+                      const tileConfig = getFileTileConfig(s.name);
+                      return (
                         <div
                           key={s.id}
-                          className="w-full min-h-[66px] bg-[#FBFAF5] border border-[#D9D5CC] rounded-[8px] flex items-center justify-between pl-[10px] pr-[12px] sm:pr-[16px] py-2 relative"
+                          style={{
+                            width: '100%',
+                            maxWidth: 'calc(480 * var(--lu))',
+                            height: 'calc(66 * var(--lu))',
+                            minHeight: 'calc(66 * var(--lu))',
+                            backgroundColor: '#FBFAF5',
+                            border: 'calc(1 * var(--lu)) solid #D9D5CC',
+                            borderRadius: 'calc(8 * var(--lu))',
+                            padding: '0 calc(16 * var(--lu)) 0 calc(10 * var(--lu))',
+                            boxSizing: 'border-box',
+                          }}
+                          className="flex items-center justify-between shrink-0"
                         >
-                          <div className="flex items-center min-w-0 flex-1 mr-[12px]">
-                            <FileTypeIcon filename={s.name} size="desktop" />
-                            <div className="ml-[10px] sm:ml-[11px] min-w-0 flex-1 flex flex-col justify-center">
-                              <p className="text-[15px] sm:text-[16px] font-bold text-[#111111] leading-tight truncate">
+                          {/* Left: Tile (46x46, radius 8px) + File name & size */}
+                          <div className="flex items-center min-w-0 flex-1 mr-[calc(12 * var(--lu))]">
+                            {/* File Tile: 46x46px, radius 8px */}
+                            <div
+                              style={{
+                                width: 'calc(46 * var(--lu))',
+                                height: 'calc(46 * var(--lu))',
+                                borderRadius: 'calc(8 * var(--lu))',
+                                backgroundColor: tileConfig.bg,
+                              }}
+                              className="flex items-center justify-center shrink-0 select-none"
+                            >
+                              {tileConfig.type === 'pdf' ? (
+                                <span
+                                  style={{
+                                    fontSize: 'calc(14 * var(--lu))',
+                                    fontWeight: 700,
+                                    color: '#ffffff',
+                                  }}
+                                  className="font-bold tracking-tight"
+                                >
+                                  PDF
+                                </span>
+                              ) : tileConfig.type === 'image' ? (
+                                <svg
+                                  style={{
+                                    width: 'calc(24 * var(--lu))',
+                                    height: 'calc(24 * var(--lu))',
+                                  }}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="#ffffff"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                  <circle cx="8.5" cy="8.5" r="1.5" />
+                                  <polyline points="21 15 16 10 5 21" />
+                                </svg>
+                              ) : tileConfig.type === 'zip' ? (
+                                <svg
+                                  style={{
+                                    width: 'calc(24 * var(--lu))',
+                                    height: 'calc(24 * var(--lu))',
+                                  }}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="#ffffff"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M10 2v2M14 4v2M10 6v2M14 8v2M10 10v2M14 12v2M10 14h4v6a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-6z" />
+                                  <rect x="4" y="2" width="16" height="20" rx="2" />
+                                </svg>
+                              ) : tileConfig.type === 'video' ? (
+                                <svg
+                                  style={{
+                                    width: 'calc(24 * var(--lu))',
+                                    height: 'calc(24 * var(--lu))',
+                                  }}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="#ffffff"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <polygon points="23 7 16 12 23 17 23 7" />
+                                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                                </svg>
+                              ) : (
+                                <span
+                                  style={{
+                                    fontSize: 'calc(12 * var(--lu))',
+                                    fontWeight: 700,
+                                    color: '#ffffff',
+                                  }}
+                                  className="font-bold tracking-tight"
+                                >
+                                  {tileConfig.label}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Name & size: name 16px weight 700 at x=67px from row left (10 + 46 + 11 = 67px), size 13px weight 500 #666 with 4px gap */}
+                            <div
+                              style={{
+                                marginLeft: 'calc(11 * var(--lu))',
+                                paddingTop: 'calc(2 * var(--lu))',
+                              }}
+                              className="min-w-0 flex-1 flex flex-col justify-center"
+                            >
+                              <p
+                                style={{
+                                  fontSize: 'calc(16 * var(--lu))',
+                                  fontWeight: 700,
+                                  color: '#111111',
+                                }}
+                                className="leading-tight truncate whitespace-nowrap"
+                              >
                                 {s.name}
                               </p>
-                              <p className="text-[12px] sm:text-[13px] font-medium text-[#666666] leading-none mt-[4px]">
+                              <p
+                                style={{
+                                  fontSize: 'calc(13 * var(--lu))',
+                                  fontWeight: 500,
+                                  color: '#666666',
+                                  marginTop: 'calc(4 * var(--lu))',
+                                }}
+                                className="leading-none whitespace-nowrap"
+                              >
                                 {formatBytes(s.size)}
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            <div className="w-[136px] shrink-0 flex items-center justify-center">
-                              {s.rejected ? (
-                                <StatusChip variant="declined" label="Declined" size="desktop" />
-                              ) : (
-                                <StatusChip variant="added" label="Added" size="desktop" />
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={e => handleRemoveStagedFile(s.id, e)}
-                              className="w-[18px] h-[18px] flex items-center justify-center cursor-pointer flex-shrink-0 hover:opacity-70 transition-opacity"
-                              title="Remove"
-                              aria-label={`Remove ${s.name}`}
-                            >
-                              <img
-                                src="/icon-close-x.webp"
-                                alt="Remove"
-                                className="w-[18px] h-[18px] object-contain"
-                              />
-                            </button>
-                          </div>
+
+                          {/* Remove icon: X (icon-close-x.webp ~18px) vertically centered, 20px from row's right edge */}
+                          <button
+                            type="button"
+                            onClick={e => handleRemoveStagedFile(s.id, e)}
+                            style={{
+                              width: 'calc(24 * var(--lu))',
+                              height: 'calc(24 * var(--lu))',
+                              marginRight: 'calc(4 * var(--lu))',
+                            }}
+                            className="flex items-center justify-center cursor-pointer shrink-0 hover:opacity-70 transition-opacity"
+                            title="Remove"
+                            aria-label={`Remove ${s.name}`}
+                          >
+                            <img
+                              src="/icon-close-x.webp"
+                              alt="Remove"
+                              style={{
+                                width: 'calc(18 * var(--lu))',
+                                height: 'calc(18 * var(--lu))',
+                              }}
+                              className="object-contain"
+                            />
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-                {/* 6. CREATE ROOM BUTTON (Full-width on mobile) */}
-                <div className="mt-[24px] sm:mt-[28px] relative flex items-center justify-center w-full">
+              {/* 6. CREATE ROOM BUTTON: gap above 28px, centered, 435px x 62px, bg #FED22E, border 3px solid #111, radius 12px, shadow 5px 6px 0 #111 */}
+              <div
+                style={{
+                  marginTop: 'calc(28 * var(--lu))',
+                  position: 'relative',
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                className="shrink-0"
+              >
+                {/* Left sparkle: ~24px wide at 34px from card's left edge near button's top */}
+                <img
+                  src="/sparkle-lines-btn-left.webp"
+                  alt=""
+                  style={{
+                    position: 'absolute',
+                    left: 'calc(2px * var(--lu))',
+                    top: 'calc(2 * var(--lu))',
+                    width: 'calc(24 * var(--lu))',
+                    height: 'calc(24 * var(--lu))',
+                  }}
+                  className="object-contain pointer-events-none select-none"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isRealRoom) {
+                      fileInputRef.current?.click();
+                    } else {
+                      handleCreateRoom();
+                    }
+                  }}
+                  disabled={!isRealRoom && (stagedFiles.length === 0 || stagedFiles.every(s => s.rejected))}
+                  style={{
+                    width: 'calc(435 * var(--lu))',
+                    height: 'calc(62 * var(--lu))',
+                    borderRadius: 'calc(12 * var(--lu))',
+                    border: 'calc(3 * var(--lu)) solid #111111',
+                    gap: 'calc(12 * var(--lu))',
+                    backgroundColor:
+                      !isRealRoom && (stagedFiles.length === 0 || stagedFiles.every(s => s.rejected))
+                        ? '#EDEBE6'
+                        : '#FED22E',
+                    boxShadow:
+                      !isRealRoom && (stagedFiles.length === 0 || stagedFiles.every(s => s.rejected))
+                        ? 'none'
+                        : 'calc(5 * var(--lu)) calc(6 * var(--lu)) 0 #111111',
+                    color:
+                      !isRealRoom && (stagedFiles.length === 0 || stagedFiles.every(s => s.rejected))
+                        ? '#8E8D88'
+                        : '#111111',
+                  }}
+                  className={`flex items-center justify-center font-heading font-extrabold select-none transition-all ${
+                    !isRealRoom && (stagedFiles.length === 0 || stagedFiles.every(s => s.rejected))
+                      ? 'cursor-not-allowed opacity-80'
+                      : 'cursor-pointer hover:translate-x-[calc(2*var(--lu))] hover:translate-y-[calc(2*var(--lu))] hover:shadow-[calc(3*var(--lu))_calc(4*var(--lu))_0_#111111]'
+                  }`}
+                >
                   <img
-                    src="/sparkle-lines-btn-left.webp"
+                    src="/mascot-pizza.webp"
                     alt=""
-                    className="hidden sm:block absolute left-[2px] top-[4px] w-[24px] h-[24px] object-contain pointer-events-none select-none z-10"
+                    style={{
+                      width: 'calc(36 * var(--lu))',
+                      height: 'calc(36 * var(--lu))',
+                    }}
+                    className="object-contain shrink-0"
                   />
+                  <span
+                    style={{ fontSize: 'calc(22 * var(--lu))', fontWeight: 800 }}
+                    className="font-heading leading-none whitespace-nowrap"
+                  >
+                    {isRealRoom ? 'Upload more files' : 'Create Room'}
+                  </span>
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={handleCreateRoom}
-                    disabled={stagedFiles.length === 0 || stagedFiles.every(s => s.rejected)}
-                    className={`w-full lg:w-[435px] max-w-full h-[58px] sm:h-[62px] rounded-[12px] border-[3px] border-[#111111] flex items-center justify-center gap-[12px] font-['Plus_Jakarta_Sans','Poppins',sans-serif] font-extrabold text-[20px] sm:text-[22px] text-[#111111] select-none transition-all ${
-                      stagedFiles.length === 0 || stagedFiles.every(s => s.rejected)
-                        ? 'bg-[#EDEBE6] shadow-none cursor-not-allowed text-[#888888] opacity-80'
-                        : 'bg-[#FED22E] shadow-[5px_6px_0_#111111] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_4px_0_#111111] cursor-pointer'
-                    }`}
+                {/* Right sparkle: ~24px wide at 20px from card's right edge near button's bottom */}
+                <img
+                  src="/sparkle-lines-btn-right.webp"
+                  alt=""
+                  style={{
+                    position: 'absolute',
+                    right: 'calc(-12px * var(--lu))',
+                    bottom: 'calc(2 * var(--lu))',
+                    width: 'calc(24 * var(--lu))',
+                    height: 'calc(24 * var(--lu))',
+                  }}
+                  className="object-contain pointer-events-none select-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ================= RIGHT COLUMN: CODE AND FILES CARDS (480px wide) ================= */}
+          <div
+            style={{
+              width: '100%',
+              minWidth: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'calc(17 * var(--u))',
+              overflow: 'hidden',
+            }}
+          >
+            {/* ================= 2. YOUR ROOM IS READY! CARD ================= */}
+            <div
+              style={
+                {
+                  '--ru': 'clamp(0.5px, calc(100vw / 1487), 1.15px)',
+                  width: '100%',
+                  maxWidth: 'calc(815 * var(--ru))',
+                  minWidth: 0,
+                  height: 'calc(377 * var(--ru))',
+                  backgroundColor: '#FDEFBB',
+                  border: 'calc(3 * var(--ru)) solid #111111',
+                  borderRadius: 'calc(22 * var(--ru))',
+                  boxShadow: 'calc(5 * var(--ru)) calc(5 * var(--ru)) 0 #111111',
+                  padding: 'calc(16 * var(--ru)) calc(28 * var(--ru))',
+                  boxSizing: 'border-box',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  flexShrink: 0,
+                } as React.CSSProperties
+              }
+            >
+              {/* TOP ROW: Heading + Code Box (Col 1), QR Box (Col 2), Scan Text (Col 3) */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  position: 'relative',
+                  width: '100%',
+                  height: 'calc(169 * var(--ru))',
+                  flexShrink: 0,
+                }}
+              >
+                {/* COLUMN 1: Heading row + Code box */}
+                <div style={{ width: 'calc(313 * var(--ru))', flexShrink: 0 }}>
+                  {/* 1. Heading row: Small pizza (50px) at left, 14px gap, "Your room is ready!" 22px/800 #111 */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'calc(14 * var(--ru))',
+                      height: 'calc(50 * var(--ru))',
+                    }}
                   >
                     <img
                       src="/mascot-pizza.webp"
                       alt=""
-                      className="w-[32px] h-[32px] sm:w-[36px] sm:h-[36px] object-contain flex-shrink-0"
+                      style={{
+                        width: 'calc(50 * var(--ru))',
+                        height: 'calc(50 * var(--ru))',
+                      }}
+                      className="object-contain shrink-0"
                     />
-                    <span>Create Room</span>
-                  </button>
-
-                  <img
-                    src="/sparkle-lines-btn-right.webp"
-                    alt=""
-                    className="hidden sm:block absolute right-[0px] bottom-[4px] w-[24px] h-[24px] object-contain pointer-events-none select-none z-10"
-                  />
-                </div>
-
-              </div>
-            </div>
-
-
-            {/* ================= 2. YOUR ROOM IS READY ================= */}
-            <div className="w-full lg:w-[815px] lg:col-start-2 lg:row-start-1 min-h-[340px] lg:min-h-[377px] bg-[#FDEFBB] border-[3px] border-[#111111] rounded-[22px] shadow-[5px_5px_0_#111111] p-4 sm:p-5 lg:pt-[16px] lg:pb-[16px] lg:px-[28px] flex flex-col justify-between">
-              
-              {/* DESKTOP TOP SECTION (>= 1024px): 3 Columns */}
-              <div className="hidden lg:flex flex-row items-start">
-                
-                {/* Column 1: Heading row + Code box & Copy button */}
-                <div className="flex flex-col w-[313px] flex-shrink-0">
-                  <div className="h-[50px] flex items-center gap-[14px]">
-                    <img
-                      src="/mascot-pizza.webp"
-                      alt=""
-                      className="w-[50px] h-[50px] object-contain flex-shrink-0"
-                    />
-                    <h3 className="font-heading font-extrabold text-[22px] text-[#111111] leading-none">
+                    <h3
+                      style={{
+                        fontSize: 'calc(22 * var(--ru))',
+                        fontWeight: 800,
+                        color: '#111111',
+                      }}
+                      className="font-heading leading-none whitespace-nowrap"
+                    >
                       Your room is ready!
                     </h3>
                   </div>
 
-                  <div className="mt-[8px]">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#5E6470] block">
-                      ROOM CODE (ENTER ON RECEIVER)
+                  {/* 2. Code box: 11px gap below heading, 313x77px, white, border 3px solid #111, radius 14px, shadow 4px 4px 0 #111 */}
+                  <div
+                    style={{
+                      marginTop: 'calc(11 * var(--ru))',
+                      width: 'calc(313 * var(--ru))',
+                      height: 'calc(77 * var(--ru))',
+                      backgroundColor: '#ffffff',
+                      border: 'calc(3 * var(--ru)) solid #111111',
+                      borderRadius: 'calc(14 * var(--ru))',
+                      boxShadow: 'calc(4 * var(--ru)) calc(4 * var(--ru)) 0 #111111',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 'calc(60 * var(--ru))',
+                        fontWeight: 800,
+                        color: '#111111',
+                        letterSpacing: '0.04em',
+                        fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      }}
+                      className="leading-none whitespace-nowrap select-all"
+                    >
+                      {activeCode}
                     </span>
-                    <div className="mt-[5px] flex items-center gap-1.5">
-                      {codeDigits.map((digit, idx) => (
-                        <div
-                          key={idx}
-                          className="w-[38px] h-[64px] bg-white border-[3px] border-[#111111] rounded-[11px] shadow-[3px_3px_0_#111111] flex items-center justify-center font-heading font-extrabold text-[28px] text-[#111111] select-all"
-                        >
-                          {digit}
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={handleCopyCode}
-                        className="w-[46px] h-[64px] bg-[#FED228] hover:bg-[#FED228]/90 border-[3px] border-[#111111] rounded-[11px] shadow-[3px_3px_0_#111111] flex items-center justify-center cursor-pointer transition-colors shrink-0 ml-1"
-                        title="Copy 6-digit room code"
-                        aria-label="Copy 6-digit room code"
-                      >
-                        {copiedCode ? (
-                          <img src="/icon-check-green.webp" alt="Copied" className="w-5 h-5 object-contain" />
-                        ) : (
-                          <img src="/icon-copy-dark.webp" alt="Copy" className="w-5 h-5 object-contain" />
-                        )}
-                      </button>
-                    </div>
                   </div>
                 </div>
 
-                {/* Column 2: QR box */}
-                <div className="relative w-[181px] h-[169px] bg-white border-[3px] border-[#111111] rounded-[18px] shadow-[4px_4px_0_#111111] flex items-center justify-center flex-shrink-0 ml-[50px]">
+                {/* COLUMN 2: QR box (50px gap from code box, 181x169px, radius 18px, border 3px solid #111, shadow 4px 4px 0 #111) */}
+                <div
+                  style={{
+                    marginLeft: 'calc(50 * var(--ru))',
+                    position: 'relative',
+                    width: 'calc(181 * var(--ru))',
+                    height: 'calc(169 * var(--ru))',
+                    backgroundColor: '#ffffff',
+                    border: 'calc(3 * var(--ru)) solid #111111',
+                    borderRadius: 'calc(18 * var(--ru))',
+                    boxShadow: 'calc(4 * var(--ru)) calc(4 * var(--ru)) 0 #111111',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
                   {qrCodeUrl ? (
                     <img
                       src={qrCodeUrl}
                       alt="QR Code"
-                      className="w-[130px] h-[130px] object-contain"
+                      style={{
+                        width: 'calc(130 * var(--ru))',
+                        height: 'calc(130 * var(--ru))',
+                      }}
+                      className="object-contain select-none pointer-events-none"
                     />
                   ) : (
-                    <div className="w-[130px] h-[130px] bg-neutral-100 rounded-lg flex items-center justify-center font-heading font-bold text-xs text-neutral-400">
-                      QR Code
+                    <div className="w-full h-full flex items-center justify-center text-xs font-bold text-neutral-400">
+                      QR
                     </div>
                   )}
 
+                  {/* Pink sparkle ~28px wide, OUTSIDE the box, 25px to right of its right edge, aligned with box's top */}
                   <img
                     src="/sparkle-pink-qr-room.webp"
                     alt=""
-                    className="absolute top-0 w-[28px] h-[28px] object-contain pointer-events-none select-none block"
-                    style={{ left: 'calc(100% + 25px)' }}
+                    style={{
+                      position: 'absolute',
+                      left: 'calc(100% + 25 * var(--ru))',
+                      top: 0,
+                      width: 'calc(28 * var(--ru))',
+                      height: 'calc(28 * var(--ru))',
+                    }}
+                    className="object-contain pointer-events-none select-none z-10"
                   />
                 </div>
 
-                {/* Column 3: Scan text */}
-                <div className="h-[169px] flex flex-col justify-center min-w-0 ml-[50px]">
-                  <p className="font-heading font-extrabold text-[17px] text-[#111111] leading-tight whitespace-nowrap">
+                {/* COLUMN 3: Scan text (third column, 50px right of QR box, vertically centered with QR box) */}
+                <div
+                  style={{
+                    marginLeft: 'calc(50 * var(--ru))',
+                    height: 'calc(169 * var(--ru))',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 'calc(17 * var(--ru))',
+                      fontWeight: 800,
+                      color: '#111111',
+                    }}
+                    className="font-heading leading-tight whitespace-nowrap"
+                  >
                     Scan the QR code
                   </p>
-                  <p className="mt-[8px] text-[15px] font-medium text-[#4F6275] leading-[22px] whitespace-nowrap">
-                    Open on any device<br />
-                    to join the room.
+                  <p
+                    style={{
+                      fontSize: 'calc(15 * var(--ru))',
+                      fontWeight: 500,
+                      color: '#4F6275',
+                      lineHeight: 'calc(22 * var(--ru))',
+                      marginTop: 'calc(8 * var(--ru))',
+                    }}
+                    className="whitespace-nowrap"
+                  >
+                    Open on any device<br />to join the room.
                   </p>
                 </div>
-
               </div>
 
-              {/* MOBILE / TABLET CONTENT (< 1024px):
-                  Arranged in exact order:
-                  1. Section heading
-                  2. Six-digit room code and copy button together
-                  3. QR code with its existing scan instructions
-              */}
-              <div className="flex lg:hidden flex-col gap-4">
-                {/* 1. Section heading */}
-                <div className="flex items-center gap-[12px] sm:gap-[14px]">
+              {/* 5. LINK BAR: 20px below QR box's bottom edge, height 58px, white, border 3px solid #111, radius 12px, shadow 4px 4px 0 #111 */}
+              <div
+                style={{
+                  marginTop: 'calc(20 * var(--ru))',
+                  width: '100%',
+                  height: 'calc(58 * var(--ru))',
+                  backgroundColor: '#ffffff',
+                  border: 'calc(3 * var(--ru)) solid #111111',
+                  borderRadius: 'calc(12 * var(--ru))',
+                  boxShadow: 'calc(4 * var(--ru)) calc(4 * var(--ru)) 0 #111111',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {/* Left cell 72px wide with link icon (~28px) centered */}
+                <div
+                  style={{
+                    width: 'calc(72 * var(--ru))',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
                   <img
-                    src="/mascot-pizza.webp"
+                    src="/icon-link.webp"
                     alt=""
-                    className="w-[42px] h-[42px] sm:w-[50px] sm:h-[50px] object-contain flex-shrink-0"
+                    style={{
+                      width: 'calc(28 * var(--ru))',
+                      height: 'calc(28 * var(--ru))',
+                    }}
+                    className="object-contain"
                   />
-                  <h3 className="font-heading font-extrabold text-[20px] sm:text-[22px] text-[#111111] leading-none">
-                    Your room is ready!
-                  </h3>
                 </div>
 
-                {/* 2. Six-digit room code and copy button together */}
-                <div className="w-full">
-                  <span className="text-[11px] sm:text-[12px] font-extrabold uppercase tracking-wider text-[#5E6470] mb-1.5 block">
-                    ROOM CODE (ENTER ON RECEIVER)
-                  </span>
-                  <div className="flex items-center gap-1 sm:gap-2 w-full max-w-[360px]">
-                    {codeDigits.map((digit, idx) => (
-                      <div
-                        key={idx}
-                        className="flex-1 min-w-0 h-[52px] sm:h-[60px] bg-white border-[2.5px] sm:border-[3px] border-[#111111] rounded-[9px] sm:rounded-[11px] shadow-[2.5px_2.5px_0_#111111] sm:shadow-[3px_3px_0_#111111] flex items-center justify-center font-heading font-extrabold text-[22px] sm:text-[26px] text-[#111111] select-all"
-                      >
-                        {digit}
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={handleCopyCode}
-                      className="w-[44px] sm:w-[52px] h-[52px] sm:h-[60px] bg-[#FED228] hover:bg-[#FED228]/90 border-[2.5px] sm:border-[3px] border-[#111111] rounded-[9px] sm:rounded-[11px] shadow-[2.5px_2.5px_0_#111111] sm:shadow-[3px_3px_0_#111111] flex items-center justify-center cursor-pointer transition-colors shrink-0 ml-1"
-                      title="Copy 6-digit room code"
-                      aria-label="Copy 6-digit room code"
-                    >
-                      {copiedCode ? (
-                        <img src="/icon-check-green.webp" alt="Copied" className="w-5 h-5 object-contain" />
-                      ) : (
-                        <img src="/icon-copy-dark.webp" alt="Copy" className="w-5 h-5 object-contain" />
-                      )}
-                    </button>
-                  </div>
-                </div>
+                {/* 1.5px #C8C8C8 vertical divider */}
+                <div
+                  style={{
+                    width: 'calc(1.5 * var(--ru))',
+                    height: '100%',
+                    backgroundColor: '#C8C8C8',
+                    flexShrink: 0,
+                  }}
+                />
 
-                {/* 3. QR code with its existing scan instructions */}
-                <div className="flex flex-col sm:flex-row items-center sm:items-center gap-3.5 sm:gap-6 mt-1">
-                  <div className="relative w-[150px] h-[150px] sm:w-[165px] sm:h-[165px] bg-white border-[3px] border-[#111111] rounded-[18px] shadow-[4px_4px_0_#111111] flex items-center justify-center shrink-0">
-                    {qrCodeUrl ? (
-                      <img
-                        src={qrCodeUrl}
-                        alt="QR Code"
-                        className="w-[120px] h-[120px] sm:w-[130px] sm:h-[130px] object-contain"
-                      />
-                    ) : (
-                      <div className="w-[120px] h-[120px] bg-neutral-100 rounded-lg flex items-center justify-center font-heading font-bold text-xs text-neutral-400">
-                        QR Code
-                      </div>
-                    )}
-                    <img
-                      src="/sparkle-pink-qr-room.webp"
-                      alt=""
-                      className="absolute -top-2.5 -right-2.5 w-[24px] h-[24px] object-contain pointer-events-none select-none block"
-                    />
-                  </div>
-
-                  <div className="flex flex-col justify-center text-center sm:text-left">
-                    <p className="font-heading font-extrabold text-[16px] sm:text-[17px] text-[#111111] leading-tight">
-                      Scan the QR code
-                    </p>
-                    <p className="mt-[6px] text-[13.5px] sm:text-[15px] font-medium text-[#4F6275] leading-[20px] sm:leading-[22px]">
-                      Open on any device<br className="hidden sm:inline" /> to join the room.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. Shareable link with copy button */}
-              <div className="mt-[16px] sm:mt-[20px] w-full max-w-[751px] min-h-[52px] sm:h-[58px] bg-white border-[3px] border-[#111111] rounded-[12px] shadow-[4px_4px_0_#111111] flex items-center overflow-hidden">
-                <div className="w-[44px] sm:w-[72px] min-w-[44px] sm:min-w-[72px] h-full flex items-center justify-center flex-shrink-0">
-                  <img src="/icon-link.webp" alt="" className="w-[20px] h-[20px] sm:w-[28px] sm:h-[28px] object-contain" />
-                </div>
-
-                <div className="w-[1.5px] h-full bg-[#C8C8C8] flex-shrink-0" />
-
-                <div className="flex-1 min-w-0 h-full flex items-center px-3 sm:pl-[16px] sm:pr-[12px]">
-                  <span className="font-sans text-[13px] sm:text-[16px] font-medium text-[#111111] truncate select-all">
+                {/* URL text starts 16px after divider, 16px, weight 500, #111, one line, ellipsis if too long */}
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    paddingLeft: 'calc(16 * var(--ru))',
+                    paddingRight: 'calc(16 * var(--ru))',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 'calc(16 * var(--ru))',
+                      fontWeight: 500,
+                      color: '#111111',
+                    }}
+                    className="font-sans truncate select-all block w-full leading-none whitespace-nowrap"
+                  >
                     {effectiveShareUrl}
                   </span>
                 </div>
 
+                {/* Right cell 122px wide, white, border-left 2px solid #111, copy icon (~22px), 8px gap and "Copy" 15px weight 700 #111. Hover: #F5F5F5 */}
                 <button
                   type="button"
                   onClick={handleCopyLink}
-                  className="w-[84px] sm:w-[122px] min-w-[84px] sm:min-w-[122px] h-full flex items-center justify-center gap-[6px] sm:gap-[8px] bg-white hover:bg-[#F5F5F5] transition-colors border-l-[2px] border-[#111111] flex-shrink-0 cursor-pointer"
+                  style={{
+                    width: 'calc(122 * var(--ru))',
+                    height: '100%',
+                    backgroundColor: '#ffffff',
+                    borderLeft: 'calc(2 * var(--ru)) solid #111111',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 'calc(8 * var(--ru))',
+                    flexShrink: 0,
+                    cursor: 'pointer',
+                  }}
+                  className="hover:bg-[#F5F5F5] transition-colors"
                   title="Copy link"
                 >
-                  <img src="/icon-copy-dark.webp" alt="" className="w-[18px] h-[18px] sm:w-[22px] sm:h-[22px] object-contain flex-shrink-0" />
-                  <span className="font-heading font-bold text-[13px] sm:text-[15px] text-[#111111]">
+                  <img
+                    src={copiedLink ? '/icon-check-green.webp' : '/icon-copy-dark.webp'}
+                    alt=""
+                    style={{
+                      width: 'calc(22 * var(--ru))',
+                      height: 'calc(22 * var(--ru))',
+                    }}
+                    className="object-contain shrink-0"
+                  />
+                  <span
+                    style={{
+                      fontSize: 'calc(15 * var(--ru))',
+                      fontWeight: 700,
+                      color: '#111111',
+                    }}
+                    className="font-heading whitespace-nowrap"
+                  >
                     {copiedLink ? 'Copied' : 'Copy'}
                   </span>
                 </button>
               </div>
 
-              {/* 5. Existing informational banner */}
-              <div className="mt-[14px] sm:mt-[20px] w-full max-w-[760px] lg:-mx-[4px] min-h-[64px] bg-[#FFF9DD] rounded-[12px] px-[14px] sm:px-[16px] py-[10px] sm:py-[12px] flex items-center border-none">
+              {/* 6. INFO STRIP (20px below link bar, ~760px wide, 4px wider than link bar on each side, height 67px, bg #FFF9DD, radius 12px, padding 0 16px) */}
+              <div
+                style={{
+                  marginTop: 'calc(20 * var(--ru))',
+                  width: 'calc(100% + 8 * var(--ru))',
+                  marginLeft: 'calc(-4 * var(--ru))',
+                  marginRight: 'calc(-4 * var(--ru))',
+                  height: 'calc(67 * var(--ru))',
+                  backgroundColor: '#FFF9DD',
+                  borderRadius: 'calc(12 * var(--ru))',
+                  paddingLeft: 'calc(16 * var(--ru))',
+                  paddingRight: 'calc(16 * var(--ru))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                  boxSizing: 'border-box',
+                }}
+              >
                 <img
                   src="/mascot-pizza.webp"
                   alt=""
-                  className="w-[32px] h-[32px] sm:w-[36px] sm:h-[36px] object-contain flex-shrink-0 self-start sm:self-center mt-0.5 sm:mt-0"
+                  style={{
+                    width: 'calc(36 * var(--ru))',
+                    height: 'calc(36 * var(--ru))',
+                  }}
+                  className="object-contain shrink-0"
                 />
-                <p className="ml-[12px] sm:ml-[16px] text-[13px] sm:text-[15.5px] font-medium leading-[20px] sm:leading-[24px] text-[#1F2D3A]">
-                  Share this code or link with anyone to upload and download files instantly across devices.
+                <p
+                  style={{
+                    fontSize: 'calc(15.5 * var(--ru))',
+                    fontWeight: 500,
+                    lineHeight: 'calc(24 * var(--ru))',
+                    color: '#1F2D3A',
+                    marginLeft: 'calc(16 * var(--ru))',
+                  }}
+                  className="whitespace-nowrap"
+                >
+                  Share this code or link with anyone. They can upload and download files<br />
+                  from any device, even on different networks.
                 </p>
               </div>
-
             </div>
 
+            {/* ================= 3. FILES IN THIS ROOM CARD (~501px tall) ================= */}
+            <div
+              style={
+                {
+                  '--ru': 'clamp(0.5px, calc(100vw / 1487), 1.15px)',
+                  width: 'calc(815 * var(--ru))',
+                  height: 'calc(501 * var(--ru))',
+                  borderRadius: 'calc(22 * var(--ru))',
+                  border: 'calc(3 * var(--ru)) solid #111111',
+                  backgroundColor: '#FDFAF5',
+                  boxShadow: 'calc(5 * var(--ru)) calc(5 * var(--ru)) 0 #111111',
+                  padding: 'calc(24 * var(--ru))',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flexShrink: 0,
+                  position: 'relative',
+                  boxSizing: 'border-box',
+                } as React.CSSProperties
+              }
+            >
+              {/* 1. TITLE ROW: "Files in this room" 24px/800 on left, white "Add more files" button 159x39px on right */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexShrink: 0,
+                  minWidth: 0,
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: 'calc(24 * var(--ru))',
+                    fontWeight: 800,
+                    color: '#111111',
+                    lineHeight: 1,
+                  }}
+                  className="font-heading whitespace-nowrap truncate select-none"
+                >
+                  Files in this room
+                </h3>
 
-            {/* ================= 3. FILES IN THIS ROOM ================= */}
-            <div className="w-full lg:w-[815px] lg:col-start-2 lg:row-start-2 min-h-[460px] lg:min-h-[501px] bg-[#FDFAF5] border-[3px] border-[#111111] rounded-[22px] shadow-[5px_5px_0_#111111] p-4 sm:p-5 lg:p-[24px] flex flex-col justify-between">
-              
-              <div className="flex flex-col">
-                {/* 1. TITLE ROW: Heading and Add more files button aligned without overlap */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <h3 className="font-heading font-extrabold text-[20px] sm:text-[24px] text-[#111111] leading-none">
-                    Files in this room
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full sm:w-[159px] h-[39px] bg-white border-[2px] border-[#111111] rounded-[10px] shadow-[3px_3px_0_#111111] flex items-center justify-center gap-[10px] cursor-pointer hover:bg-neutral-50 transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0_#111111]"
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    width: 'calc(159 * var(--ru))',
+                    height: 'calc(39 * var(--ru))',
+                    borderRadius: 'calc(10 * var(--ru))',
+                    border: 'calc(2 * var(--ru)) solid #111111',
+                    backgroundColor: '#ffffff',
+                    boxShadow: 'calc(3 * var(--ru)) calc(3 * var(--ru)) 0 #111111',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 'calc(10 * var(--ru))',
+                    cursor: 'pointer',
+                  }}
+                  className="hover:bg-neutral-50 active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-none transition-all select-none shrink-0"
+                  title="Add more files"
+                >
+                  <img
+                    src="/icon-plus.webp"
+                    alt=""
+                    style={{
+                      width: 'calc(16 * var(--ru))',
+                      height: 'calc(16 * var(--ru))',
+                    }}
+                    className="object-contain shrink-0"
+                  />
+                  <span
+                    style={{
+                      fontSize: 'calc(14 * var(--ru))',
+                      fontWeight: 700,
+                      color: '#111111',
+                    }}
+                    className="font-heading leading-none whitespace-nowrap"
                   >
-                    <img
-                      src="/icon-plus.webp"
-                      alt=""
-                      className="w-[16px] h-[16px] object-contain flex-shrink-0"
-                    />
-                    <span className="font-heading font-bold text-[14px] text-[#111111] leading-none">
-                      Add more files
-                    </span>
-                  </button>
-                </div>
+                    Add more files
+                  </span>
+                </button>
+              </div>
 
-                {/* 2. FILE ROWS: Stack or reflow cleanly */}
-                <div className="mt-[12px] sm:mt-[10px] flex flex-col gap-[8px] sm:gap-[6px]">
-                  {/* Real uploading queue items */}
-                  {uploadQueue.map((item, idx) => (
+              {/* 2. FILE ROWS (starts 10px below the button, 6px gap between rows) */}
+              <div
+                style={{
+                  marginTop: 'calc(10 * var(--ru))',
+                  marginBottom: 'calc(12 * var(--ru))',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'calc(6 * var(--ru))',
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: 'auto',
+                }}
+              >
+                {/* Upload queue items */}
+                {uploadQueue.map((item, idx) => {
+                  const tileConfig = getFileTileConfig(item.name);
+                  const isUploading = item.status === 'uploading';
+                  const isWaiting = (item.status as string) === 'waiting';
+                  const isCompleted = item.status === 'completed';
+                  const isError = item.status === 'error';
+
+                  return (
                     <div
                       key={`uq-${idx}`}
-                      className="relative w-full max-w-[759px] h-[74px] min-h-[74px] max-h-[74px] bg-[#FCFBF6] border border-[#E9E8E3] rounded-[12px] px-3 sm:px-[18px] flex items-center justify-between"
+                      style={{
+                        width: '100%',
+                        height: 'calc(74 * var(--ru))',
+                        backgroundColor: '#FCFBF6',
+                        border: 'calc(1 * var(--ru)) solid #E9E8E3',
+                        borderRadius: 'calc(12 * var(--ru))',
+                        paddingLeft: 'calc(18 * var(--ru))',
+                        paddingRight: 'calc(18 * var(--ru))',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexShrink: 0,
+                        boxSizing: 'border-box',
+                      }}
                     >
-                      {/* File Tile + Name & Size (truncates with at least 12px gap to status chip) */}
-                      <div className="flex items-center min-w-0 flex-1 mr-[12px]">
-                        <FileTypeIcon filename={item.name} size="desktop" />
-                        <div className="ml-3 sm:ml-[22px] min-w-0 flex-1 flex flex-col justify-center">
-                          <p className="text-[15px] sm:text-[16px] font-bold text-[#111111] leading-tight truncate">
+                      {/* Left side: File tile + File name & size */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          minWidth: 0,
+                        }}
+                      >
+                        {/* File tile: 46x46px, radius 10px */}
+                        <div
+                          style={{
+                            width: 'calc(46 * var(--ru))',
+                            height: 'calc(46 * var(--ru))',
+                            borderRadius: 'calc(10 * var(--ru))',
+                            backgroundColor: tileConfig.bg,
+                            overflow: 'hidden',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {tileConfig.icon ? (
+                            <img
+                              src={tileConfig.icon}
+                              alt=""
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain',
+                              }}
+                              className="shrink-0 select-none"
+                            />
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: 'calc(13 * var(--ru))',
+                                fontWeight: 700,
+                                color: '#ffffff',
+                              }}
+                              className="font-heading"
+                            >
+                              {tileConfig.label}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* File name (starts 22px right of tile, 16px/700) + size (13px/500 #666, 4px gap) */}
+                        <div
+                          style={{
+                            marginLeft: 'calc(22 * var(--ru))',
+                            maxWidth: 'calc(285 * var(--ru))',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            minWidth: 0,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <p
+                            style={{
+                              fontSize: 'calc(16 * var(--ru))',
+                              fontWeight: 700,
+                              color: '#111111',
+                              lineHeight: 1.2,
+                            }}
+                            className="font-heading truncate whitespace-nowrap"
+                            title={item.name}
+                          >
                             {item.name}
                           </p>
-                          <p className="mt-[4px] text-[12px] sm:text-[13px] font-medium text-[#666666] leading-none">
+                          <p
+                            style={{
+                              fontSize: 'calc(13 * var(--ru))',
+                              fontWeight: 500,
+                              color: '#666666',
+                              marginTop: 'calc(4 * var(--ru))',
+                              lineHeight: 1,
+                            }}
+                            className="whitespace-nowrap"
+                          >
                             {formatBytes(item.size)}
                           </p>
                         </div>
                       </div>
 
-                      {/* Status Column: fixed 136px width, aligned across all rows */}
-                      <div className="w-[136px] shrink-0 flex items-center justify-center">
-                        {item.status === 'error' ? (
-                          <StatusChip
-                            variant="declined"
-                            label="Failed"
-                            size="desktop"
-                            title="Upload failed. Click to retry."
-                            onClick={() => {
-                              onFileUpload([new File([], item.name)]);
+                      {/* STATUS COLUMN starts at fixed x=387px, 150px wide */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: 'calc(387 * var(--ru))',
+                          width: 'calc(150 * var(--ru))',
+                          top: 0,
+                          bottom: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {isUploading ? (
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              width: '100%',
+                              justifyContent: 'center',
                             }}
-                          />
+                          >
+                            <div
+                              style={{
+                                width: '100%',
+                                height: 'calc(10 * var(--ru))',
+                                backgroundColor: '#EBEAE6',
+                                borderRadius: '9999px',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  height: '100%',
+                                  width: `${Math.min(100, Math.max(5, item.progress))}%`,
+                                  backgroundColor: '#0A78F5',
+                                  borderRadius: '9999px',
+                                  transition: 'width 0.2s ease',
+                                }}
+                              />
+                            </div>
+                            <span
+                              style={{
+                                fontSize: 'calc(14 * var(--ru))',
+                                fontWeight: 600,
+                                color: '#1F4E8C',
+                                marginTop: 'calc(8 * var(--ru))',
+                                lineHeight: 1,
+                              }}
+                              className="font-heading whitespace-nowrap"
+                            >
+                              Uploading... {item.progress || 68}%
+                            </span>
+                          </div>
+                        ) : isWaiting ? (
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              width: '100%',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: '100%',
+                                height: 'calc(10 * var(--ru))',
+                                backgroundColor: '#EDEBEC',
+                                borderRadius: '9999px',
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontSize: 'calc(14 * var(--ru))',
+                                fontWeight: 500,
+                                color: '#8A8A8A',
+                                marginTop: 'calc(8 * var(--ru))',
+                                lineHeight: 1,
+                              }}
+                              className="font-heading whitespace-nowrap"
+                            >
+                              Waiting...
+                            </span>
+                          </div>
+                        ) : isError ? (
+                          <span
+                            style={{
+                              fontSize: 'calc(14 * var(--ru))',
+                              fontWeight: 600,
+                              color: '#DC2626',
+                            }}
+                            className="font-heading whitespace-nowrap cursor-pointer hover:underline"
+                            onClick={() => onFileUpload([new File([], item.name)])}
+                            title="Click to retry"
+                          >
+                            Failed (retry)
+                          </span>
                         ) : (
-                          <StatusChip
-                            variant="uploading"
-                            progress={item.progress}
-                            size="desktop"
-                          />
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 'calc(8 * var(--ru))',
+                            }}
+                          >
+                            <img
+                              src="/icon-check-green.webp"
+                              alt=""
+                              style={{
+                                width: 'calc(17 * var(--ru))',
+                                height: 'calc(17 * var(--ru))',
+                              }}
+                              className="object-contain shrink-0"
+                            />
+                            <span
+                              style={{
+                                fontSize: 'calc(15 * var(--ru))',
+                                fontWeight: 600,
+                                color: '#1E7A4C',
+                              }}
+                              className="font-heading whitespace-nowrap"
+                            >
+                              Uploaded
+                            </span>
+                          </div>
                         )}
                       </div>
 
-                      {/* Action buttons (right aligned) */}
-                      <div className="flex items-center justify-end shrink-0 ml-[12px]">
-                        <button
-                          type="button"
-                          disabled
-                          className="w-[105px] sm:w-[122px] h-[36px] sm:h-[40px] bg-[#ECEBE6] border border-[#D6D5D0] rounded-[10px] flex items-center justify-center gap-[8px] cursor-not-allowed select-none"
+                      {/* Right side: DOWNLOAD BUTTON + THREE-DOT ICON */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          marginLeft: 'auto',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {isCompleted ? (
+                          <button
+                            type="button"
+                            onClick={() => onDownloadFile({ id: `uq-${idx}`, originalFilename: item.name, sizeBytes: item.size, mimeType: '', createdAt: Date.now() })}
+                            style={{
+                              width: 'calc(130 * var(--ru))',
+                              height: 'calc(43 * var(--ru))',
+                              backgroundColor: '#FED22E',
+                              border: 'calc(3 * var(--ru)) solid #111111',
+                              borderRadius: 'calc(10 * var(--ru))',
+                              boxShadow: 'calc(3 * var(--ru)) calc(3 * var(--ru)) 0 #111111',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 'calc(8 * var(--ru))',
+                              cursor: 'pointer',
+                            }}
+                            className="hover:translate-x-[0.5px] hover:translate-y-[0.5px] active:shadow-none transition-all select-none"
+                          >
+                            <img
+                              src="/icon-download-yellow-btn.webp"
+                              alt=""
+                              style={{
+                                width: 'calc(18 * var(--ru))',
+                                height: 'calc(18 * var(--ru))',
+                              }}
+                              className="object-contain shrink-0"
+                            />
+                            <span
+                              style={{
+                                fontSize: 'calc(15 * var(--ru))',
+                                fontWeight: 700,
+                                color: '#111111',
+                              }}
+                              className="font-heading leading-none whitespace-nowrap"
+                            >
+                              Download
+                            </span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            style={{
+                              width: 'calc(130 * var(--ru))',
+                              height: 'calc(43 * var(--ru))',
+                              backgroundColor: '#E4E5E8',
+                              border: 'calc(2 * var(--ru)) solid #D5D6D8',
+                              borderRadius: 'calc(10 * var(--ru))',
+                              boxShadow: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 'calc(8 * var(--ru))',
+                              cursor: 'not-allowed',
+                            }}
+                            className="select-none"
+                          >
+                            <img
+                              src="/icon-download-grey.webp"
+                              alt=""
+                              style={{
+                                width: 'calc(18 * var(--ru))',
+                                height: 'calc(18 * var(--ru))',
+                              }}
+                              className="object-contain shrink-0"
+                            />
+                            <span
+                              style={{
+                                fontSize: 'calc(15 * var(--ru))',
+                                fontWeight: 700,
+                                color: '#888A90',
+                              }}
+                              className="font-heading leading-none whitespace-nowrap"
+                            >
+                              Download
+                            </span>
+                          </button>
+                        )}
+
+                        <div
+                          style={{
+                            marginLeft: 'calc(40 * var(--ru))',
+                            width: 'calc(24 * var(--ru))',
+                            height: 'calc(24 * var(--ru))',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: 0.35,
+                            cursor: 'not-allowed',
+                          }}
                         >
                           <img
-                            src="/icon-download-grey.webp"
-                            alt=""
-                            className="w-[16px] h-[16px] sm:w-[18px] sm:h-[18px] object-contain flex-shrink-0"
-                          />
-                          <span className="font-heading font-semibold text-[13px] sm:text-[14px] text-[#8E8D88] leading-none">
-                            Download
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="w-[34px] h-[34px] ml-[8px] sm:ml-[10px] rounded-[8px] bg-transparent hover:bg-neutral-200/50 flex items-center justify-center cursor-pointer transition-colors"
-                          aria-label="More"
-                        >
-                          <img
-                            src="/icon-dots.webp"
+                            src="/icon-dots-vertical.webp"
                             alt="More"
-                            className="w-[18px] h-[18px] object-contain"
+                            style={{
+                              width: 'calc(18 * var(--ru))',
+                              height: 'calc(18 * var(--ru))',
+                            }}
+                            className="object-contain"
                           />
-                        </button>
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
 
-                  {/* Real room files */}
-                  {isRealRoom && roomFiles.map(file => (
+                {/* Real room files */}
+                {roomFiles.map(file => {
+                  const tileConfig = getFileTileConfig(file.originalFilename);
+
+                  return (
                     <div
                       key={file.id}
-                      className="relative w-full max-w-[759px] h-[74px] min-h-[74px] max-h-[74px] bg-[#FCFBF6] border border-[#E9E8E3] rounded-[12px] px-3 sm:px-[18px] flex items-center justify-between"
+                      style={{
+                        width: '100%',
+                        height: 'calc(74 * var(--ru))',
+                        minHeight: 'calc(74 * var(--ru))',
+                        maxHeight: 'calc(74 * var(--ru))',
+                        backgroundColor: '#FCFBF6',
+                        border: 'calc(1 * var(--ru)) solid #E9E8E3',
+                        borderRadius: 'calc(12 * var(--ru))',
+                        paddingLeft: 'calc(18 * var(--ru))',
+                        paddingRight: 'calc(18 * var(--ru))',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexShrink: 0,
+                        boxSizing: 'border-box',
+                      }}
                     >
-                      {/* File Tile + Name & Size (truncates with at least 12px gap to status chip) */}
-                      <div className="flex items-center min-w-0 flex-1 mr-[12px]">
-                        <FileTypeIcon filename={file.originalFilename} size="desktop" />
-                        <div className="ml-3 sm:ml-[22px] min-w-0 flex-1 flex flex-col justify-center">
-                          <p className="text-[15px] sm:text-[16px] font-bold text-[#111111] leading-tight truncate">
+                      {/* Left side: File tile + File name & size */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          minWidth: 0,
+                        }}
+                      >
+                        {/* File tile: 46x46px, radius 10px */}
+                        <div
+                          style={{
+                            width: 'calc(46 * var(--ru))',
+                            height: 'calc(46 * var(--ru))',
+                            borderRadius: 'calc(10 * var(--ru))',
+                            backgroundColor: tileConfig.bg,
+                            overflow: 'hidden',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {tileConfig.icon ? (
+                            <img
+                              src={tileConfig.icon}
+                              alt=""
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain',
+                              }}
+                              className="shrink-0 select-none"
+                            />
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: 'calc(13 * var(--ru))',
+                                fontWeight: 700,
+                                color: '#ffffff',
+                              }}
+                              className="font-heading"
+                            >
+                              {tileConfig.label}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* File name (starts 22px right of tile, 16px/700) + size (13px/500 #666, 4px gap) */}
+                        <div
+                          style={{
+                            marginLeft: 'calc(22 * var(--ru))',
+                            maxWidth: 'calc(285 * var(--ru))',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            minWidth: 0,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <p
+                            style={{
+                              fontSize: 'calc(16 * var(--ru))',
+                              fontWeight: 700,
+                              color: '#111111',
+                              lineHeight: 1.2,
+                            }}
+                            className="font-heading truncate whitespace-nowrap"
+                            title={file.originalFilename}
+                          >
                             {file.originalFilename}
                           </p>
-                          <p className="mt-[4px] text-[12px] sm:text-[13px] font-medium text-[#666666] leading-none">
+                          <p
+                            style={{
+                              fontSize: 'calc(13 * var(--ru))',
+                              fontWeight: 500,
+                              color: '#666666',
+                              marginTop: 'calc(4 * var(--ru))',
+                              lineHeight: 1,
+                            }}
+                            className="whitespace-nowrap"
+                          >
                             {formatBytes(file.sizeBytes)}
                           </p>
                         </div>
                       </div>
 
-                      {/* Status column: fixed 136px width, aligned across all rows */}
-                      <div className="w-[136px] shrink-0 flex items-center justify-center">
-                        <StatusChip variant="uploaded" size="desktop" />
+                      {/* STATUS COLUMN starts at fixed x=387px, 150px wide */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: 'calc(387 * var(--ru))',
+                          width: 'calc(150 * var(--ru))',
+                          top: 0,
+                          bottom: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 'calc(8 * var(--ru))',
+                          }}
+                        >
+                          <img
+                            src="/icon-check-green.webp"
+                            alt=""
+                            style={{
+                              width: 'calc(17 * var(--ru))',
+                              height: 'calc(17 * var(--ru))',
+                            }}
+                            className="object-contain shrink-0"
+                          />
+                          <span
+                            style={{
+                              fontSize: 'calc(15 * var(--ru))',
+                              fontWeight: 600,
+                              color: '#1E7A4C',
+                            }}
+                            className="font-heading whitespace-nowrap"
+                          >
+                            Uploaded
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Action buttons */}
-                      <div className="flex items-center justify-end shrink-0 ml-[12px]">
+                      {/* Right side: DOWNLOAD BUTTON + THREE-DOT ICON */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          marginLeft: 'auto',
+                          flexShrink: 0,
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={() => onDownloadFile(file)}
-                          className="w-[105px] sm:w-[122px] h-[36px] sm:h-[40px] bg-[#FED22E] border-[2px] border-[#111111] rounded-[10px] shadow-[3px_3px_0_#111111] flex items-center justify-center gap-[8px] cursor-pointer hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#111111] transition-all select-none"
+                          style={{
+                            width: 'calc(130 * var(--ru))',
+                            height: 'calc(43 * var(--ru))',
+                            backgroundColor: '#FED22E',
+                            border: 'calc(3 * var(--ru)) solid #111111',
+                            borderRadius: 'calc(10 * var(--ru))',
+                            boxShadow: 'calc(3 * var(--ru)) calc(3 * var(--ru)) 0 #111111',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 'calc(8 * var(--ru))',
+                            cursor: 'pointer',
+                          }}
+                          className="hover:translate-x-[0.5px] hover:translate-y-[0.5px] active:shadow-none transition-all select-none"
+                          title="Download file"
                         >
                           <img
                             src="/icon-download-yellow-btn.webp"
                             alt=""
-                            className="w-[16px] h-[16px] sm:w-[18px] sm:h-[18px] object-contain flex-shrink-0"
+                            style={{
+                              width: 'calc(18 * var(--ru))',
+                              height: 'calc(18 * var(--ru))',
+                            }}
+                            className="object-contain shrink-0"
                           />
-                          <span className="font-heading font-bold text-[13px] sm:text-[14px] text-[#111111] leading-none">
+                          <span
+                            style={{
+                              fontSize: 'calc(15 * var(--ru))',
+                              fontWeight: 700,
+                              color: '#111111',
+                            }}
+                            className="font-heading leading-none whitespace-nowrap"
+                          >
                             Download
                           </span>
                         </button>
 
+                        {/* THREE-DOT ICON (menu trigger): 40px to the right of download button */}
                         <div className="relative">
                           <button
                             type="button"
@@ -927,19 +1978,47 @@ export const RoomView: React.FC<RoomViewProps> = ({
                               e.stopPropagation();
                               setActiveMenuFileId(prev => (prev === file.id ? null : file.id));
                             }}
-                            className="w-[34px] h-[34px] ml-[8px] sm:ml-[10px] rounded-[8px] bg-transparent hover:bg-neutral-200/50 flex items-center justify-center cursor-pointer transition-colors"
+                            style={{
+                              marginLeft: 'calc(40 * var(--ru))',
+                              width: 'calc(24 * var(--ru))',
+                              height: 'calc(24 * var(--ru))',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              background: 'transparent',
+                              border: 'none',
+                              padding: 0,
+                            }}
                             aria-label="More"
                           >
                             <img
-                              src="/icon-dots.webp"
+                              src="/icon-dots-vertical.webp"
                               alt="More"
-                              className="w-[18px] h-[18px] object-contain"
+                              style={{
+                                width: 'calc(18 * var(--ru))',
+                                height: 'calc(18 * var(--ru))',
+                              }}
+                              className="object-contain"
                             />
                           </button>
+
                           {activeMenuFileId === file.id && (
                             <div
                               onClick={e => e.stopPropagation()}
-                              className="absolute right-0 top-[40px] z-30 w-[140px] bg-white border-[2px] border-[#111111] rounded-[10px] shadow-[3px_3px_0_#111111] py-1 px-1 flex flex-col text-[13px] font-heading font-bold"
+                              style={{
+                                position: 'absolute',
+                                right: 0,
+                                top: 'calc(34 * var(--ru))',
+                                width: 'calc(120 * var(--ru))',
+                                borderRadius: 'calc(8 * var(--ru))',
+                                border: 'calc(2 * var(--ru)) solid #111111',
+                                backgroundColor: '#ffffff',
+                                boxShadow: 'calc(3 * var(--ru)) calc(3 * var(--ru)) 0 #111111',
+                                padding: 'calc(4 * var(--ru))',
+                                zIndex: 50,
+                              }}
+                              className="flex flex-col font-heading font-bold"
                             >
                               <button
                                 type="button"
@@ -947,7 +2026,12 @@ export const RoomView: React.FC<RoomViewProps> = ({
                                   onDownloadFile(file);
                                   setActiveMenuFileId(null);
                                 }}
-                                className="w-full text-left px-2.5 py-1.5 hover:bg-[#FED228]/20 rounded-md cursor-pointer"
+                                style={{
+                                  fontSize: 'calc(13 * var(--ru))',
+                                  padding: 'calc(6 * var(--ru)) calc(10 * var(--ru))',
+                                  textAlign: 'left',
+                                }}
+                                className="w-full hover:bg-[#FED228]/20 rounded cursor-pointer whitespace-nowrap"
                               >
                                 Download
                               </button>
@@ -958,7 +2042,12 @@ export const RoomView: React.FC<RoomViewProps> = ({
                                     handleDeleteFile(file.id);
                                     setActiveMenuFileId(null);
                                   }}
-                                  className="w-full text-left px-2.5 py-1.5 hover:bg-rose-50 text-rose-600 rounded-md cursor-pointer"
+                                  style={{
+                                    fontSize: 'calc(13 * var(--ru))',
+                                    padding: 'calc(6 * var(--ru)) calc(10 * var(--ru))',
+                                    textAlign: 'left',
+                                  }}
+                                  className="w-full hover:bg-rose-50 text-rose-600 rounded cursor-pointer whitespace-nowrap"
                                 >
                                   Delete
                                 </button>
@@ -968,32 +2057,102 @@ export const RoomView: React.FC<RoomViewProps> = ({
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
 
-                  {roomFiles.length === 0 && uploadQueue.length === 0 && (
-                    <div className="py-10 text-center text-[#71717A]">
-                      <p className="font-heading font-bold text-[16px] text-[#111111]">No files in this room yet.</p>
-                      <p className="font-sans text-[14px] text-[#71717A] mt-1">
-                        Click "+ Add more files" above or drop files to upload.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                {/* Empty state: only when room has no files and no upload queue */}
+                {roomFiles.length === 0 && uploadQueue.length === 0 && (
+                  <div
+                    style={{
+                      height: 'calc(260 * var(--ru))',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: 'calc(18 * var(--ru))',
+                        fontWeight: 800,
+                        color: '#111111',
+                      }}
+                      className="font-heading"
+                    >
+                      No files in this room yet.
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 'calc(14 * var(--ru))',
+                        color: '#71717A',
+                        marginTop: 'calc(6 * var(--ru))',
+                      }}
+                      className="font-sans"
+                    >
+                      Click "+ Add more files" above or drop files to upload.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* 3. GOOD TO KNOW BANNER: mint banner at card bottom */}
-              <div className="mt-[16px] w-full max-w-[759px] min-h-[66px] bg-[#E6F9F0] rounded-[12px] px-[14px] sm:px-[18px] py-[12px] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 border-none">
-                <div className="flex items-center gap-[12px] sm:gap-[14px] min-w-0">
+              {/* 3. "GOOD TO KNOW" BANNER (20px below the last row, inside the card) */}
+              <div
+                style={{
+                  marginTop: 'calc(20 * var(--ru))',
+                  width: 'calc(759 * var(--ru))',
+                  height: 'calc(79 * var(--ru))',
+                  borderRadius: 'calc(12 * var(--ru))',
+                  border: 'calc(2 * var(--ru)) solid #5FA599',
+                  backgroundColor: '#E4FAEE',
+                  paddingLeft: 'calc(16 * var(--ru))',
+                  paddingRight: 'calc(16 * var(--ru))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexShrink: 0,
+                  boxSizing: 'border-box',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'calc(12 * var(--ru))',
+                    minWidth: 0,
+                  }}
+                >
                   <img
                     src="/mascot-pizza.webp"
                     alt=""
-                    className="w-[30px] h-[30px] sm:w-[34px] sm:h-[34px] object-contain flex-shrink-0"
+                    style={{
+                      width: 'calc(32 * var(--ru))',
+                      height: 'calc(32 * var(--ru))',
+                    }}
+                    className="object-contain shrink-0"
                   />
-                  <div>
-                    <h4 className="font-heading font-extrabold text-[14px] sm:text-[15px] text-[#111111] leading-tight">
+                  <div style={{ minWidth: 0 }}>
+                    <h4
+                      style={{
+                        fontSize: 'calc(15 * var(--ru))',
+                        fontWeight: 800,
+                        color: '#111111',
+                        lineHeight: 1.2,
+                      }}
+                      className="font-heading whitespace-nowrap"
+                    >
                       Good to know
                     </h4>
-                    <p className="text-[12.5px] sm:text-[13.5px] font-medium text-[#444444] leading-normal">
+                    <p
+                      style={{
+                        fontSize: 'calc(13 * var(--ru))',
+                        fontWeight: 500,
+                        color: '#3B4E43',
+                        marginTop: 'calc(2 * var(--ru))',
+                        lineHeight: 1.2,
+                      }}
+                      className="whitespace-nowrap"
+                    >
                       Files stay available for 1 hour of inactivity or up to 6 hours total.
                     </p>
                   </div>
@@ -1004,19 +2163,43 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   type="button"
                   onClick={handleEndRoom}
                   disabled={isEnding}
-                  className="w-full sm:w-auto flex-shrink-0 flex items-center justify-center gap-[8px] px-[16px] h-[38px] bg-white border-[2.5px] border-[#FD3F77] text-[#FD3F77] rounded-[10px] shadow-[3px_3px_0_#111111] font-heading font-extrabold text-[13.5px] cursor-pointer hover:bg-rose-50 transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0_#111111] leading-none"
+                  style={{
+                    width: 'calc(136 * var(--ru))',
+                    height: 'calc(46 * var(--ru))',
+                    borderRadius: 'calc(10 * var(--ru))',
+                    border: 'calc(2.5 * var(--ru)) solid #C8174D',
+                    backgroundColor: '#ffffff',
+                    boxShadow: 'calc(3 * var(--ru)) calc(3 * var(--ru)) 0 #D9506F',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 'calc(8 * var(--ru))',
+                    cursor: isEnding ? 'wait' : 'pointer',
+                  }}
+                  className="hover:bg-[#FFF0F4] whitespace-nowrap shrink-0 transition-all active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-none select-none"
                 >
                   <img
                     src="/icon-trash.webp"
                     alt=""
-                    className="w-[16px] h-[16px] object-contain"
+                    style={{
+                      width: 'calc(18 * var(--ru))',
+                      height: 'calc(18 * var(--ru))',
+                    }}
+                    className="object-contain shrink-0"
                   />
-                  <span>{isEnding ? 'Ending...' : 'End room'}</span>
+                  <span
+                    style={{
+                      fontSize: 'calc(15 * var(--ru))',
+                      fontWeight: 700,
+                      color: '#C8174D',
+                    }}
+                    className="font-heading leading-none whitespace-nowrap"
+                  >
+                    End room
+                  </span>
                 </button>
               </div>
-
             </div>
-
           </div>
         </div>
       </div>

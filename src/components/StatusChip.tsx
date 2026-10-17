@@ -13,7 +13,7 @@ export interface StatusChipProps {
   variant: StatusChipVariant;
   label?: string;
   progress?: number;
-  size?: 'desktop' | 'mobile';
+  size?: 'desktop' | 'mobile' | 'unit';
   className?: string;
   onClick?: (e: React.MouseEvent) => void;
   title?: string;
@@ -29,6 +29,7 @@ export const StatusChip: React.FC<StatusChipProps> = ({
   title,
 }) => {
   const isMobile = size === 'mobile';
+  const isUnit = size === 'unit';
 
   // Exact color definitions matching spec
   const config = {
@@ -195,7 +196,9 @@ export const StatusChip: React.FC<StatusChipProps> = ({
       className={`inline-flex items-center justify-center whitespace-nowrap rounded-full transition-all duration-150 select-none shrink-0 ${
         isClickable ? 'cursor-pointer hover:opacity-90 active:scale-95' : ''
       } ${
-        isMobile
+        isUnit
+          ? 'w-[calc(80*var(--u))] h-[calc(22*var(--u))] px-[calc(6*var(--u))] gap-[calc(4*var(--u))] text-[calc(9.5*var(--u))] font-semibold'
+          : isMobile
           ? 'w-[124px] h-[30px] px-2 gap-[6px] text-[13px] font-semibold'
           : 'w-[136px] h-[34px] px-2 gap-[6px] text-[14px] font-semibold'
       } ${className}`}
@@ -207,13 +210,20 @@ export const StatusChip: React.FC<StatusChipProps> = ({
     >
       {/* In place of the loader icon: percentage for uploading, icon circle for other chips */}
       {variant === 'uploading' ? (
-        <span className="font-semibold tabular-nums leading-none tracking-normal whitespace-nowrap shrink-0">
+        <span
+          style={{ fontSize: isUnit ? 'calc(9*var(--u))' : undefined }}
+          className="font-semibold tabular-nums leading-none tracking-normal whitespace-nowrap shrink-0"
+        >
           {progress ?? 0}%
         </span>
       ) : (
         <div
           className={`rounded-full flex items-center justify-center shrink-0 ${
-            isMobile ? 'w-[16px] h-[16px]' : 'w-[18px] h-[18px]'
+            isUnit
+              ? 'w-[calc(13*var(--u))] h-[calc(13*var(--u))]'
+              : isMobile
+              ? 'w-[16px] h-[16px]'
+              : 'w-[18px] h-[18px]'
           }`}
           style={{
             backgroundColor: config.circleBg,

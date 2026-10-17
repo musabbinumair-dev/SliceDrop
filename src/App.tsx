@@ -231,11 +231,15 @@ export default function App() {
       handleJoinByCode(roomParam);
     } else if (viewParam === 'room') {
       setCurrentView('room');
-      if (!currentRoom) {
-        createNewRoom();
-      }
     }
-  }, [handleJoinByCode, createNewRoom]);
+  }, [handleJoinByCode]);
+
+  // Ensure an active room exists whenever on the room view
+  useEffect(() => {
+    if (currentView === 'room' && !currentRoom) {
+      createNewRoom();
+    }
+  }, [currentView, currentRoom, createNewRoom]);
 
   // Refresh room periodically (every 3.5s) to get newly uploaded files
   const refreshRoom = useCallback(async () => {

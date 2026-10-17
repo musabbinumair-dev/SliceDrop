@@ -267,7 +267,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
   const codeDigits = activeCode.padEnd(6, '0').slice(0, 6).split('');
 
   return (
-    <div className="min-h-screen bg-[#FBF6EC] text-[#111111] flex flex-col font-['DM_Sans',sans-serif] relative overflow-x-hidden pb-[380px] selection:bg-[#FED232] selection:text-[#111111]">
+    <div className="h-screen bg-[#FBF6EC] text-[#111111] flex flex-col font-['DM_Sans',sans-serif] relative overflow-hidden selection:bg-[#FED232] selection:text-[#111111]">
       {/* Hidden native file input */}
       <input
         type="file"
@@ -282,7 +282,7 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
       />
 
       {/* ================= 1. TOP BAR ================= */}
-      <header className="w-full h-[50px] px-[20px] flex items-center justify-between relative z-20 shrink-0">
+      <header className="w-full pt-4 h-[50px] px-[20px] flex items-center justify-between relative z-20 shrink-0">
         {/* Left: Brand Logo */}
         <Logo onClick={onLeaveRoom} />
 
@@ -303,44 +303,50 @@ export const MobileRoomView: React.FC<MobileRoomViewProps> = ({
             />
           </button>
 
-          {/* Overflow Menu */}
-          {isTopMenuOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setIsTopMenuOpen(false)}
-              />
-              <div className="absolute right-0 top-[48px] w-[220px] bg-white border-[3px] border-[#111111] rounded-[18px] shadow-[4px_4px_0_#111111] p-3 z-40 animate-in fade-in zoom-in-95 font-['DM_Sans',sans-serif]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsTopMenuOpen(false);
-                    setIsGoodToKnowOpen(true);
-                  }}
-                  className="w-full text-left px-2.5 py-2 rounded-[10px] hover:bg-[#FBF6EC] flex items-center gap-2 text-[#111111] font-bold text-[14px] cursor-pointer"
-                >
-                  <Clock className="w-4 h-4 text-[#8562FC]" />
-                  <span>Good to know</span>
-                </button>
 
-                <div className="h-[2px] bg-[#E6E0D4] my-1" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsTopMenuOpen(false);
-                    setIsEndRoomDialogOpen(true);
-                  }}
-                  className="w-full text-left px-2.5 py-2 rounded-[10px] hover:bg-rose-50 flex items-center gap-2 text-[#FC3A76] font-bold text-[14px] cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4 text-[#FC3A76]" />
-                  <span>End room</span>
-                </button>
-              </div>
-            </>
-          )}
         </div>
       </header>
+
+      {/* Overflow Menu (Moved out of header to ensure z-index overlay) */}
+      {isTopMenuOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsTopMenuOpen(false)}
+          />
+          <div className="fixed right-4 top-16 w-[220px] bg-white border-[3px] border-[#111111] rounded-[18px] shadow-[4px_4px_0_#111111] p-2 z-50 animate-in fade-in zoom-in-95 font-['DM_Sans',sans-serif]">
+            <button
+              type="button"
+              onClick={() => {
+                setIsTopMenuOpen(false);
+                setIsGoodToKnowOpen(true);
+              }}
+              className="w-full text-left px-3 py-3 rounded-[12px] hover:bg-[#FBF6EC] flex items-center gap-3 text-[#111111] font-bold text-[15px] cursor-pointer transition-colors"
+            >
+              <div className="w-8 h-8 rounded-[10px] bg-[#8562FC]/10 flex items-center justify-center shrink-0">
+                <Clock className="w-4 h-4 text-[#8562FC]" />
+              </div>
+              <span>Good to know</span>
+            </button>
+
+            <div className="h-[2px] bg-[#E6E0D4] my-1 mx-1" />
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsTopMenuOpen(false);
+                setIsEndRoomDialogOpen(true);
+              }}
+              className="w-full text-left px-3 py-3 rounded-[12px] hover:bg-rose-50 flex items-center gap-3 text-[#FC3A76] font-bold text-[15px] cursor-pointer transition-colors"
+            >
+              <div className="w-8 h-8 rounded-[10px] bg-[#FC3A76]/10 flex items-center justify-center shrink-0">
+                <Trash2 className="w-4 h-4 text-[#FC3A76]" />
+              </div>
+              <span>End room</span>
+            </button>
+          </div>
+        </>
+      )}
 
       {/* ================= 2. TICKET CONTAINER ================= */}
       {/* 350px wide container, aspect-ratio 769 / 462, ticket-plain.webp as background */}

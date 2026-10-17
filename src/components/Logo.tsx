@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Single constant for custom logo path. If empty, the neutral placeholder is displayed.
-export const LOGO_SRC = "/slicedrop_logo_option_c_transparent.png";
+export const LOGO_SRC = "/new-brand-logo.png";
 
 interface LogoProps {
   showTagline?: boolean;
@@ -29,7 +29,7 @@ export const Logo: React.FC<LogoProps> = ({
           <img
             src={LOGO_SRC}
             alt="SliceDrop Logo"
-            className="h-10 sm:h-11 md:h-12 w-auto object-contain shrink-0"
+            className="h-13 sm:h-15 md:h-17 w-auto object-contain shrink-0 group-hover:scale-105 transition-transform"
           />
           {showTagline && (
             <span className="text-[11px] sm:text-[13px] font-semibold text-[#71717A] tracking-normal mt-0.5">

@@ -6,6 +6,7 @@
 
 @layer base {
   :root {
+    --u: clamp(0.85px, 0.1157vw, 1.9px);
     --bg-cream: #FDF7ED;
     --yellow: #FED228;
     --pink: #FD3F77;
